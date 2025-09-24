@@ -1,0 +1,930 @@
+import 'dart:convert';
+import 'package:animated_tree_view/tree_view/tree_node.dart';
+import 'package:animated_tree_view/tree_view/tree_view.dart';
+import 'package:animated_tree_view/tree_view/widgets/expansion_indicator.dart';
+import 'package:animated_tree_view/tree_view/widgets/indent.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:mplusanalyzer/models/benchmark_item.dart';
+import 'package:mplusanalyzer/models/http_response.dart';
+import 'package:mplusanalyzer/utils/api.dart';
+import 'package:mplusanalyzer/utils/card_choose.dart';
+import 'package:mplusanalyzer/utils/language_pack.dart';
+import 'package:mplusanalyzer/utils/theme_module.dart';
+import 'package:mplusanalyzer/utils/utils.dart';
+import 'package:mplusanalyzer/widgets/widgets.dart';
+import 'package:multi_dropdown/multi_dropdown.dart';
+import 'package:uuid/uuid.dart';
+import '../../models/client.dart';
+import '../../models/document_items.dart';
+import '../../utils/messages.dart';
+import '../../widgets/keypad.dart';
+import '../../widgets/tri_state_checkbox.dart';
+import '../clients/clients_page.dart';
+
+class BenchmarkDoc extends StatefulWidget {
+  final dynamic benchmarkData;
+  final List<String> listClientCodesFromDocList;
+  const BenchmarkDoc(
+    this.benchmarkData,
+    this.listClientCodesFromDocList, {
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  State<BenchmarkDoc> createState() => _BenchmarkDocState();
+}
+
+class _BenchmarkDocState extends State<BenchmarkDoc> {
+  LanguagePack lan = LanguagePack();
+  bool isLoading = true, isItemsLoading = false, isNew = true;
+  List<BenchmarkItem> listItems = [];
+  bool isSearching = false, isSelectedCategory = false;
+  TextEditingController txtSearchController = TextEditingController(),
+      txtDebtFilter = TextEditingController(),
+      textClientCategory = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  int selectedCategoryType = 0, selectedCategoryIndex = -1;
+  List listCategories = [];
+  List<String> listCategoryTypes = [];
+  TreeNode treeNodeMain = TreeNode();
+  ExpansibleController clientFilterExpansibleController =
+      new ExpansibleController();
+  final controllerDaysOfWeekMultiSelect = MultiSelectController<int>();
+  LatLng _currentLocation = LatLng(0, 0);
+  List<DropdownItem<int>> listDaysOfWeek = [];
+  DocumentItems documentItems = DocumentItems(
+    client: Client(
+      clientCode: '',
+      clientName: '',
+      seller: '',
+      clientLatitude: 0,
+      clientLongitude: 0,
+      clientDebt: 0,
+      lastConfrontDate: '',
+      lastFaqDate: '',
+      lastBenchmarkDate: '',
+      distance: 0,
+      statusConfront: 0,
+      statusFaq: 0,
+      statusBmk: 0,
+    ),
+  );
+  String selectedCategoryGuid = '', bmkGuid = '';
+
+  Future<void> onCategoryTypeTap() async {
+    selectedCategoryIndex = -1;
+    isSelectedCategory = false;
+
+    if (listCategoryTypes.isNotEmpty) {
+      await CardChoose(context).showCardModalBottomSheet(listCategoryTypes, (
+        i,
+      ) {
+        setState(() {
+          selectedCategoryType = i;
+          listItems = [];
+        });
+      });
+    }
+  }
+
+  Future<void> onCategoryTap() async {
+    List<String> listCard = listCategories
+        .where((e) => e['bmcType'] == selectedCategoryType)
+        .map((e) => e['bmcName'].toString())
+        .toList();
+    if (listCategories.isNotEmpty) {
+      await CardChoose(context).showCardModalBottomSheet(listCard, (i) async {
+        selectedCategoryGuid = listCategories
+            .where((e) => e['bmcType'] == selectedCategoryType)
+            .toList()[i]['bmcGuid'];
+        await fillItemsByCategory(selectedCategoryGuid);
+        setState(() {
+          selectedCategoryIndex = i;
+          isSelectedCategory = true;
+        });
+      });
+    }
+  }
+
+  Future<List> getCategories() async {
+    List _list = [];
+    HttpResponseModel response = await API().request_(
+      context,
+      'POST',
+      'Benchmarks/GetBenchmarkCategories',
+      {},
+    );
+
+    if (response.code == 200) {
+      _list = jsonDecode(response.message) as List;
+    }
+    return _list;
+  }
+
+  void fillElements() async {
+    _currentLocation = await Utils().getCurrentLocation(context);
+    txtDebtFilter.text = '0';
+    listCategoryTypes = [
+      '${lan.getTranslatedText('category')} 1',
+      '${lan.getTranslatedText('category')} 2',
+      lan.getTranslatedText('firm'),
+    ];
+    listCategories = await getCategories();
+    treeNodeMain = await Utils().getClientFilterTreeNode(context);
+
+    listDaysOfWeek = Utils().getWeekDays();
+
+    if (widget.benchmarkData != null) {
+      isNew = false;
+      clientFilterExpansibleController.collapse();
+      documentItems.client.clientCode = widget.benchmarkData['clientCode'];
+      documentItems.client.clientName = widget.benchmarkData['clientName'];
+      selectedCategoryType = widget.benchmarkData['categoryType'];
+      selectedCategoryGuid = widget.benchmarkData['categoryGuid'];
+      bmkGuid = widget.benchmarkData['bmkGuid'];
+      selectedCategoryIndex = listCategories
+          .where((e) => e['bmcType'] == selectedCategoryType)
+          .toList()
+          .indexWhere((e) => e['bmcGuid'] == selectedCategoryGuid);
+      isSelectedCategory = true;
+
+      String filterCondition = '';
+      switch (selectedCategoryType) {
+        case 0:
+          filterCondition = 'bmi_category1_guid';
+          break;
+        case 1:
+          filterCondition = 'bmi_category2_guid';
+          break;
+        case 2:
+          filterCondition = 'bmi_firm_guid';
+          break;
+      }
+
+      Map body = {
+        "bmkGuid": bmkGuid,
+        "bmiStatus": 1,
+        "filterConditions": [
+          {
+            "isUsed": true,
+            "columnName": filterCondition,
+            "condition": "===",
+            "valueX": selectedCategoryGuid,
+            "valueY": "",
+          },
+        ],
+      };
+      HttpResponseModel response = await API().request_(
+        context,
+        'POST',
+        'Benchmarks/GetBenchmarkLines',
+        body,
+      );
+      if (response.code == 200) {
+        List<dynamic> data = jsonDecode(response.message) as List;
+        listItems.clear();
+        data.forEach((e) {
+          listItems.add(
+            BenchmarkItem(
+              guid: e['bmiGuid'],
+              itemCode: e['itemCode'],
+              itemName: e['itemName'],
+              category1: e['category1'],
+              category2: e['category2'],
+              firm: e['firm'],
+              weight: e['weight'].toDouble(),
+              listPrice: e['listPrice'].toDouble(),
+              standPrice: e['standPrice'].toDouble(),
+              actionPrice: e['actionPrice'].toDouble(),
+              comment: e['comment'],
+            ),
+          );
+        });
+      }
+    } else {
+      const uuid = Uuid();
+      bmkGuid = uuid.v4();
+    }
+    setState(() {
+      isLoading = false;
+    });
+  }
+
+  String getHeaderText() {
+    if (widget.benchmarkData != null) {
+      return '${widget.benchmarkData['docNumber']}';
+    } else {
+      return lan.getTranslatedText('newBenchmark');
+    }
+  }
+
+  void openCommentDialog(BenchmarkItem item) {
+    TextEditingController _txtCommentController = TextEditingController(
+      text: item.comment,
+    );
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(lan.getTranslatedText('addComment')),
+        content: TextField(
+          controller: _txtCommentController,
+          maxLines: 1,
+          inputFormatters: [LengthLimitingTextInputFormatter(150)],
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: Text(lan.getTranslatedText('cancel')),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+          TextButton(
+            child: Text(lan.getTranslatedText('save')),
+            onPressed: () {
+              setState(() {
+                item.comment = _txtCommentController.text;
+              });
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  save() async {
+    String msgKey = '';
+    List<BenchmarkItem> typedItems = listItems
+        .where(
+          (e) =>
+              e.weight > 0 ||
+              e.actionPrice > 0 ||
+              e.listPrice > 0 ||
+              e.standPrice > 0,
+        )
+        .toList();
+    if (documentItems.client.clientCode == '') {
+      msgKey = 'clientNotSelected';
+    } else if (typedItems.isEmpty) {
+      msgKey = 'noItemsOnList';
+    }
+
+    if (msgKey != '') {
+      Messages(context: context).showSnackBar(lan.getTranslatedText(msgKey), 0);
+      return;
+    }
+
+    Messages(context: context).showYesNoDialog(
+      lan.getTranslatedText('areYouSureYouWantToSave'),
+      () async {
+        try {
+          Map body = {
+            "bmkGuid": bmkGuid,
+            "clientCode": documentItems.client.clientCode,
+            "categoryType": selectedCategoryType,
+            "categoryGuid": selectedCategoryGuid,
+            "isNew": isNew,
+            "items": typedItems.map((e) {
+              return {
+                "bmlItemGuid": e.guid,
+                "weight": e.weight,
+                "listPrice": e.listPrice,
+                "standPrice": e.standPrice,
+                "actionPrice": e.actionPrice,
+                "comment": e.comment,
+              };
+            }).toList(),
+          };
+          HttpResponseModel response = await API().request_(
+            context,
+            'POST',
+            'Benchmarks/InsertUpdateBenchmarks',
+            body,
+          );
+
+          if (response.code == 200) {
+            Messages(
+              context: context,
+            ).showSnackBar(lan.getTranslatedText('documentSaved'), 1);
+            Navigator.pop(context);
+          }
+
+          setState(() {});
+        } catch (e) {
+          Messages(
+            context: context,
+          ).showWarningDialog(lan.getTranslatedText('anErrorOccurred'));
+        }
+      },
+    );
+  }
+
+  Future<void> fillItemsByCategory(String categoryGuid) async {
+    listItems == [];
+    String filterCondition = '';
+    switch (selectedCategoryType) {
+      case 0:
+        filterCondition = 'bmi_category1_guid';
+        break;
+      case 1:
+        filterCondition = 'bmi_category2_guid';
+        break;
+      case 2:
+        filterCondition = 'bmi_firm_guid';
+        break;
+    }
+    Map body_ = {
+      "bmiStatus": 1,
+      "filterConditions": [
+        {
+          "isUsed": true,
+          "columnName": filterCondition,
+          "condition": "===",
+          "valueX": categoryGuid,
+          "valueY": "",
+        },
+      ],
+    };
+
+    HttpResponseModel response = await API().request_(
+      context,
+      'POST',
+      'Benchmarks/GetBenchmarkItems',
+      body_,
+    );
+    if (response.code == 200) {
+      List _list = jsonDecode(response.message) as List;
+      listItems = _list
+          .map(
+            (e) => BenchmarkItem(
+              guid: e['bmiGuid'],
+              itemCode: e['bmiCode'],
+              itemName: e['bmiName'],
+              category1: e['bmiCategory1'],
+              category2: e['bmiCategory1'],
+              firm: e['bmiFirm'],
+            ),
+          )
+          .toList();
+    }
+  }
+
+  void _onSearchChanged(String filterKey_) {
+    if (filterKey_.isNotEmpty) {
+      for (int i = 0; i < listItems.length; i++) {
+        final filter = filterKey_.toLowerCase();
+        if (listItems[i].itemCode.toLowerCase().contains(filter) ||
+            listItems[i].itemName.toLowerCase().contains(filter)) {
+          Utils().scrollToIndex(_scrollController, i, itemExtent: 125);
+          break;
+        }
+      }
+    } else {
+      Utils().scrollToIndex(_scrollController, 0);
+    }
+  }
+
+  Future<void> onClientTap() async {
+    List<Client> listClient_ = [];
+    double debtFilter = double.tryParse(txtDebtFilter.text) ?? 0;
+
+    String selectedSellers = await Utils().getSelectedSellers(treeNodeMain);
+
+    if (selectedSellers == '') {
+      Messages(
+        context: context,
+      ).showSnackBar(lan.getTranslatedText('chooseFilter'), 0);
+      return;
+    }
+
+    //get selected days of week
+    String selectedDaysOfWeek = controllerDaysOfWeekMultiSelect.selectedItems
+        .map((e) => e.value.toString())
+        .join(',');
+    listClient_ = await Utils().getClinetList(
+      context: context,
+      currentLatitude: _currentLocation.latitude,
+      currentLongitude: _currentLocation.longitude,
+      selectedSellers: selectedSellers,
+      debtLimit: debtFilter.toString(),
+      selectedDaysOfWeek: selectedDaysOfWeek,
+      category: textClientCategory.text,
+    );
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            ClientsPage(documentItems, listClient_, selectedSellers, 2),
+      ),
+    );
+    clientFilterExpansibleController.collapse();
+    setState(() {});
+  }
+
+  @override
+  void initState() {
+    clientFilterExpansibleController.expand();
+
+    fillElements();
+    super.initState();
+  }
+
+  Widget getWidgetClientFilter() {
+    return Card(
+      margin: EdgeInsets.all(2),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Column(
+        children: [
+          ExpansionTile(
+            controller: clientFilterExpansibleController,
+            title: Text(lan.getTranslatedText('clientFilter')),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: SizedBox(
+                  height: 200,
+                  child: TreeView.simple(
+                    expansionBehavior: ExpansionBehavior.collapseOthers,
+                    tree: treeNodeMain,
+                    showRootNode: false,
+                    expansionIndicatorBuilder: (context, node) =>
+                        ChevronIndicator.rightDown(
+                          padding: EdgeInsets.only(right: 10),
+                          tree: node,
+                          color: Colors.blue[700],
+                        ),
+                    indentation: const Indentation(
+                      style: IndentStyle.roundJoint,
+                    ),
+                    builder: (context, node) {
+                      int value_ = node.meta?['value'] ?? 0;
+                      return Column(
+                        children: [
+                          TriStateCheckbox(
+                            value: value_,
+                            label: node.key,
+                            onChanged: (newValue) {
+                              setState(() {
+                                node.meta = {'value': newValue};
+                                node.children.forEach((key, node1) {
+                                  node1.meta = {'value': newValue};
+                                  node1.children.forEach((key, node2) {
+                                    node2.meta = {'value': newValue};
+                                  });
+                                });
+
+                                if (node.parent != null) {
+                                  int countNodeParent1 = 0;
+                                  node.parent?.children.forEach((key, node1) {
+                                    int node1Value = node1.meta?['value'] ?? 0;
+                                    if (node1Value > 0) {
+                                      countNodeParent1++;
+                                    }
+                                  });
+                                  int valueNodeParent1 = 1;
+                                  if (node.parent?.children.length ==
+                                      countNodeParent1) {
+                                    valueNodeParent1 = 2;
+                                  } else if (countNodeParent1 == 0) {
+                                    valueNodeParent1 = 0;
+                                  }
+                                  node.parent?.meta = {
+                                    'value': valueNodeParent1,
+                                  };
+
+                                  if (node.parent?.parent != null) {
+                                    int countNodeParent2Checked = 0,
+                                        countNodeParent2Dash = 0;
+                                    node.parent?.parent?.children.forEach((
+                                      key,
+                                      node2,
+                                    ) {
+                                      int node2Value =
+                                          node2.meta?['value'] ?? 0;
+                                      if (node2Value == 2) {
+                                        countNodeParent2Checked++;
+                                      } else if (node2Value == 1) {
+                                        countNodeParent2Dash++;
+                                      }
+                                    });
+                                    int valueNodeParent2 = 0;
+                                    if (node.parent?.parent?.children.length ==
+                                        countNodeParent2Checked) {
+                                      valueNodeParent2 = 2;
+                                    } else if (countNodeParent2Dash > 0) {
+                                      valueNodeParent2 = 1;
+                                    }
+                                    node.parent?.parent?.meta = {
+                                      'value': valueNodeParent2,
+                                    };
+                                  }
+                                }
+                              });
+                            },
+                          ),
+                          Divider(),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                child: Widgets().getTextFormField(
+                  txtDebtFilter,
+                  (v) {},
+                  [FilteringTextInputFormatter.digitsOnly],
+                  'minDebt',
+                  ThemeModule.cTextFieldLabelColor,
+                  ThemeModule.cTextFieldFillColor,
+                  false,
+                  TextInputType.number,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                child: Widgets().getTextFormField(
+                  textClientCategory,
+                  (v) {},
+                  [],
+                  'category',
+                  ThemeModule.cTextFieldLabelColor,
+                  ThemeModule.cTextFieldFillColor,
+                  false,
+                  TextInputType.text,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                child: Widgets().getInvoiceMultiSelectWidget(
+                  context,
+                  controllerDaysOfWeekMultiSelect,
+                  'daysOfWeek',
+                  'daysOfWeekSelection',
+                  Icons.card_giftcard,
+                  listDaysOfWeek,
+                  () {},
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget getWidgetItemCard(BenchmarkItem item) {
+    return GestureDetector(
+      onTap: () async {
+        await KeyPad().showItemBenchmarkKeyPadDialog(context, item);
+        setState(() {});
+      },
+      child: Slidable(
+        closeOnScroll: true,
+        endActionPane: ActionPane(
+          extentRatio: 0.3,
+          motion: const ScrollMotion(),
+          children: [
+            Widgets().getSlideElement(
+              'comment',
+              Icons.notes,
+              () => openCommentDialog(item),
+              Colors.yellowAccent.shade100,
+            ),
+          ],
+        ),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          margin: EdgeInsets.symmetric(vertical: 2),
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withValues(alpha: 0.5),
+                blurRadius: 4,
+                offset: Offset(2, 4), // changes position of shadow
+              ),
+            ],
+            borderRadius: BorderRadius.circular(22),
+            color: ThemeModule.cWhiteBlackColor,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Text(
+                  item.itemName,
+                  textAlign: TextAlign.start,
+                  style: TextStyle(
+                    fontFamily: 'poppins_semibold',
+                    fontSize: 12,
+                    color: ThemeModule.cBlackWhiteColor,
+                  ),
+                ),
+              ),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: Widgets().getRichText(
+                      lan.getTranslatedText('code'),
+                      TextStyle(
+                        color: ThemeModule.cBlackWhiteColor,
+                        fontFamily: 'poppins_regular',
+                        fontSize: 12,
+                      ),
+                      item.itemCode,
+                      TextStyle(
+                        color: ThemeModule.cBlackWhiteColor,
+                        fontSize: 12,
+                        fontFamily: 'poppins_semibold',
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 3),
+                  Expanded(
+                    child: Widgets().getRichText(
+                      lan.getTranslatedText('firm'),
+                      TextStyle(
+                        color: ThemeModule.cBlackWhiteColor,
+                        fontFamily: 'poppins_regular',
+                        fontSize: 12,
+                      ),
+                      item.firm,
+                      TextStyle(
+                        color: ThemeModule.cBlackWhiteColor,
+                        fontSize: 12,
+                        fontFamily: 'poppins_semibold',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Widgets().getRichText(
+                      lan.getTranslatedText('categoryShort') + ' 1',
+                      TextStyle(
+                        color: ThemeModule.cBlackWhiteColor,
+                        fontFamily: 'poppins_regular',
+                        fontSize: 12,
+                      ),
+                      item.category1,
+                      TextStyle(
+                        color: ThemeModule.cBlackWhiteColor,
+                        fontSize: 12,
+                        fontFamily: 'poppins_semibold',
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 3),
+                  Expanded(
+                    child: Widgets().getRichText(
+                      lan.getTranslatedText('categoryShort') + ' 2',
+                      TextStyle(
+                        color: ThemeModule.cBlackWhiteColor,
+                        fontFamily: 'poppins_regular',
+                        fontSize: 12,
+                      ),
+                      item.category2.toString(),
+                      TextStyle(
+                        color: ThemeModule.cBlackWhiteColor,
+                        fontSize: 12,
+                        fontFamily: 'poppins_semibold',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Widgets().getRichText(
+                lan.getTranslatedText('comment'),
+                TextStyle(
+                  color: ThemeModule.cBlackWhiteColor,
+                  fontFamily: 'poppins_regular',
+                  fontSize: 12,
+                ),
+                item.comment,
+                TextStyle(
+                  color: ThemeModule.cBlackWhiteColor,
+                  fontSize: 12,
+                  fontFamily: 'poppins_semibold',
+                ),
+              ),
+
+              Text(
+                lan.getTranslatedText('quantityTyped'),
+                style: TextStyle(
+                  fontFamily: 'poppins_regular',
+                  fontSize: 12,
+                  color: ThemeModule.cBlackWhiteColor,
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  getTypedQuantityWidget(item.standPrice),
+                  SizedBox(width: 5),
+                  getTypedQuantityWidget(item.actionPrice),
+                  SizedBox(width: 5),
+                  getTypedQuantityWidget(item.weight),
+                  SizedBox(width: 5),
+                  getTypedQuantityWidget(item.listPrice),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color getItemColor(BenchmarkItem item) {
+    if (item.weight > 0 ||
+        item.listPrice > 0 ||
+        item.standPrice > 0 ||
+        item.actionPrice > 0) {
+      return ThemeModule.cLightGreenColor;
+    } else {
+      return ThemeModule.cScrollbarColor;
+    }
+  }
+
+  Widget getItemListWidget() {
+    return isItemsLoading
+        ? Widgets().getLoadingWidget(context)
+        : ListView.builder(
+            controller:
+                _scrollController, // Keep if you need scroll controller features
+            itemExtent: 125,
+            itemCount: listItems.length,
+            shrinkWrap: true, // Add this
+            itemBuilder: (context, index) {
+              BenchmarkItem item = listItems[index];
+              return getWidgetItemCard(item);
+            },
+          );
+  }
+
+  Widget getTypedQuantityWidget(double quantity) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        border: Border.all(color: ThemeModule.cForeColor),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Center(
+        child: Text(
+          quantity.toStringAsFixed(2),
+          style: TextStyle(
+            color: Colors.red,
+            fontFamily: 'poppins_semibold',
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    bool isClientChosen = documentItems.client.clientCode != '' ? true : false;
+    return Scaffold(
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(20.0),
+            bottomRight: Radius.circular(20.0),
+          ),
+          child: AppBar(
+            automaticallyImplyLeading: false,
+            actions: [
+              GestureDetector(
+                onTap: () => setState(() {
+                  isSearching = !isSearching;
+                  if (!isSearching) {
+                    txtSearchController.clear();
+                    _onSearchChanged('');
+                  }
+                }),
+                child: Container(
+                  height: 36,
+                  width: 36,
+                  child: Icon(
+                    size: 24,
+                    isSearching ? Icons.close : Icons.search,
+                    color: ThemeModule.cBlackWhiteColor,
+                  ),
+                ),
+              ),
+              SizedBox(width: 7),
+              GestureDetector(
+                onTap: () => save(),
+                child: Container(
+                  height: 36,
+                  width: 36,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    color: ThemeModule.cWhiteBlackColor,
+                  ),
+                  child: Icon(
+                    size: 24,
+                    Icons.save,
+                    color: ThemeModule.cForeColor,
+                  ),
+                ),
+              ),
+              SizedBox(width: 7),
+            ],
+            title: !isSearching
+                ? Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        color: ThemeModule.cWhiteBlackColor,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 30,
+                          vertical: 2,
+                        ),
+                        child: Text(
+                          getHeaderText(),
+                          style: TextStyle(
+                            fontFamily: 'poppins_medium',
+                            fontSize: 20,
+                            color: ThemeModule.cBlackWhiteColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                : Widgets().getSearchBar(
+                    context,
+                    txtSearchController,
+                    () => _onSearchChanged(txtSearchController.text),
+                  ),
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: !isLoading
+              ? Column(
+                  verticalDirection: VerticalDirection.down,
+                  children: [
+                    getWidgetClientFilter(),
+                    Widgets().getInvoiceChooseCardWidget(
+                      context,
+                      documentItems.client.clientName,
+                      '${lan.getTranslatedText('code')}:${documentItems.client.clientCode}    ${lan.getTranslatedText('clientDebt')}:${documentItems.client.clientDebt}₼',
+                      'chooseClient',
+                      Icons.supervisor_account_sharp,
+                      isClientChosen,
+                      () => onClientTap(),
+                    ),
+                    Widgets().getInvoiceChooseCardWidget(
+                      context,
+                      listCategoryTypes[selectedCategoryType],
+                      'categoryType',
+                      'chooseCategoryType',
+                      Icons.category,
+                      true,
+                      () => onCategoryTypeTap(),
+                    ), //Client
+
+                    Widgets().getInvoiceChooseCardWidget(
+                      context,
+                      selectedCategoryIndex == -1
+                          ? ''
+                          : listCategories
+                                .where(
+                                  (e) => e['bmcType'] == selectedCategoryType,
+                                )
+                                .toList()[selectedCategoryIndex]['bmcName']
+                                .toString(),
+                      'category',
+                      'chooseCategory',
+                      Icons.category_outlined,
+                      isSelectedCategory,
+                      () => onCategoryTap(),
+                    ), //Client
+                    const Divider(height: 10, thickness: 1),
+                    Expanded(child: getItemListWidget()),
+                  ],
+                )
+              : Widgets().getLoadingWidget(context),
+        ),
+      ),
+    );
+  }
+}
