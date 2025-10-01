@@ -165,6 +165,7 @@ class KeyPad {
                 itemData.quantityTyped3 = double.tryParse(countings[3]!) ?? 0;
                 itemData.quantityTyped4 = double.tryParse(countings[4]!) ?? 0;
                 itemData.quantityTyped5 = double.tryParse(countings[5]!) ?? 0;
+                itemData.quantityInserted = true;
                 Navigator.pop(context);
               }
 

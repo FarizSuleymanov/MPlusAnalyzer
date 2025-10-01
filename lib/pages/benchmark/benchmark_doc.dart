@@ -10,7 +10,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:mplusanalyzer/models/benchmark_item.dart';
 import 'package:mplusanalyzer/models/http_response.dart';
 import 'package:mplusanalyzer/utils/api.dart';
-import 'package:mplusanalyzer/utils/card_choose.dart';
 import 'package:mplusanalyzer/utils/language_pack.dart';
 import 'package:mplusanalyzer/utils/theme_module.dart';
 import 'package:mplusanalyzer/utils/utils.dart';
@@ -39,22 +38,23 @@ class BenchmarkDoc extends StatefulWidget {
 
 class _BenchmarkDocState extends State<BenchmarkDoc> {
   LanguagePack lan = LanguagePack();
-  bool isLoading = true, isItemsLoading = false, isNew = true;
-  List<BenchmarkItem> listItems = [];
-  bool isSearching = false, isSelectedCategory = false;
+  bool isLoading = true, isNew = true;
+  List<BenchmarkItem> listItems = [], listAllItems = [];
+  bool isSearching = false;
   TextEditingController txtSearchController = TextEditingController(),
       txtDebtFilter = TextEditingController(),
       textClientCategory = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  int selectedCategoryType = 0, selectedCategoryIndex = -1;
-  List listCategories = [];
-  List<String> listCategoryTypes = [];
+
   TreeNode treeNodeMain = TreeNode();
   ExpansibleController clientFilterExpansibleController =
       new ExpansibleController();
   final controllerDaysOfWeekMultiSelect = MultiSelectController<int>();
   LatLng _currentLocation = LatLng(0, 0);
   List<DropdownItem<int>> listDaysOfWeek = [];
+  List<DropdownItem<String>> listFirms = [],
+      listCategories1 = [],
+      listCategories2 = [];
   DocumentItems documentItems = DocumentItems(
     client: Client(
       clientCode: '',
@@ -72,69 +72,12 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
       statusBmk: 0,
     ),
   );
-  String selectedCategoryGuid = '', bmkGuid = '';
+  String bmkGuid = '';
 
-  Future<void> onCategoryTypeTap() async {
-    selectedCategoryIndex = -1;
-    isSelectedCategory = false;
-
-    if (listCategoryTypes.isNotEmpty) {
-      await CardChoose(context).showCardModalBottomSheet(listCategoryTypes, (
-        i,
-      ) {
-        setState(() {
-          selectedCategoryType = i;
-          listItems = [];
-        });
-      });
-    }
-  }
-
-  Future<void> onCategoryTap() async {
-    List<String> listCard = listCategories
-        .where((e) => e['bmcType'] == selectedCategoryType)
-        .map((e) => e['bmcName'].toString())
-        .toList();
-    if (listCategories.isNotEmpty) {
-      await CardChoose(context).showCardModalBottomSheet(listCard, (i) async {
-        selectedCategoryGuid = listCategories
-            .where((e) => e['bmcType'] == selectedCategoryType)
-            .toList()[i]['bmcGuid'];
-        await fillItemsByCategory(selectedCategoryGuid);
-        setState(() {
-          selectedCategoryIndex = i;
-          isSelectedCategory = true;
-        });
-      });
-    }
-  }
-
-  Future<List> getCategories() async {
-    List _list = [];
-    HttpResponseModel response = await API().request_(
-      context,
-      'POST',
-      'Benchmarks/GetBenchmarkCategories',
-      {},
-    );
-
-    if (response.code == 200) {
-      _list = jsonDecode(response.message) as List;
-    }
-    return _list;
-  }
-
-  void fillElements() async {
+  fillElements() async {
     _currentLocation = await Utils().getCurrentLocation(context);
     txtDebtFilter.text = '0';
-    listCategoryTypes = [
-      '${lan.getTranslatedText('category')} 1',
-      '${lan.getTranslatedText('category')} 2',
-      lan.getTranslatedText('firm'),
-    ];
-    listCategories = await getCategories();
     treeNodeMain = await Utils().getClientFilterTreeNode(context);
-
     listDaysOfWeek = Utils().getWeekDays();
 
     if (widget.benchmarkData != null) {
@@ -142,41 +85,10 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
       clientFilterExpansibleController.collapse();
       documentItems.client.clientCode = widget.benchmarkData['clientCode'];
       documentItems.client.clientName = widget.benchmarkData['clientName'];
-      selectedCategoryType = widget.benchmarkData['categoryType'];
-      selectedCategoryGuid = widget.benchmarkData['categoryGuid'];
+
       bmkGuid = widget.benchmarkData['bmkGuid'];
-      selectedCategoryIndex = listCategories
-          .where((e) => e['bmcType'] == selectedCategoryType)
-          .toList()
-          .indexWhere((e) => e['bmcGuid'] == selectedCategoryGuid);
-      isSelectedCategory = true;
 
-      String filterCondition = '';
-      switch (selectedCategoryType) {
-        case 0:
-          filterCondition = 'bmi_category1_guid';
-          break;
-        case 1:
-          filterCondition = 'bmi_category2_guid';
-          break;
-        case 2:
-          filterCondition = 'bmi_firm_guid';
-          break;
-      }
-
-      Map body = {
-        "bmkGuid": bmkGuid,
-        "bmiStatus": 1,
-        "filterConditions": [
-          {
-            "isUsed": true,
-            "columnName": filterCondition,
-            "condition": "===",
-            "valueX": selectedCategoryGuid,
-            "valueY": "",
-          },
-        ],
-      };
+      Map body = {"bmkGuid": bmkGuid, "bmiStatus": 1, "filterConditions": []};
       HttpResponseModel response = await API().request_(
         context,
         'POST',
@@ -207,7 +119,16 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
     } else {
       const uuid = Uuid();
       bmkGuid = uuid.v4();
+      await fillAllItems();
+
+      listFirms = listAllItems
+          .map((e) => e.firm)
+          .toSet()
+          .toList()
+          .map((firm) => DropdownItem(value: firm, label: firm))
+          .toList();
     }
+
     setState(() {
       isLoading = false;
     });
@@ -284,8 +205,8 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
           Map body = {
             "bmkGuid": bmkGuid,
             "clientCode": documentItems.client.clientCode,
-            "categoryType": selectedCategoryType,
-            "categoryGuid": selectedCategoryGuid,
+            "categoryType": 0,
+            "categoryGuid": '00000000-0000-0000-0000-000000000000',
             "isNew": isNew,
             "items": typedItems.map((e) {
               return {
@@ -322,32 +243,10 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
     );
   }
 
-  Future<void> fillItemsByCategory(String categoryGuid) async {
-    listItems == [];
-    String filterCondition = '';
-    switch (selectedCategoryType) {
-      case 0:
-        filterCondition = 'bmi_category1_guid';
-        break;
-      case 1:
-        filterCondition = 'bmi_category2_guid';
-        break;
-      case 2:
-        filterCondition = 'bmi_firm_guid';
-        break;
-    }
-    Map body_ = {
-      "bmiStatus": 1,
-      "filterConditions": [
-        {
-          "isUsed": true,
-          "columnName": filterCondition,
-          "condition": "===",
-          "valueX": categoryGuid,
-          "valueY": "",
-        },
-      ],
-    };
+  Future<void> fillAllItems() async {
+    listAllItems == [];
+
+    Map body_ = {"bmiStatus": 1};
 
     HttpResponseModel response = await API().request_(
       context,
@@ -357,14 +256,14 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
     );
     if (response.code == 200) {
       List _list = jsonDecode(response.message) as List;
-      listItems = _list
+      listAllItems = _list
           .map(
             (e) => BenchmarkItem(
               guid: e['bmiGuid'],
               itemCode: e['bmiCode'],
               itemName: e['bmiName'],
               category1: e['bmiCategory1'],
-              category2: e['bmiCategory1'],
+              category2: e['bmiCategory2'],
               firm: e['bmiFirm'],
             ),
           )
@@ -568,7 +467,6 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
                   'daysOfWeekSelection',
                   Icons.card_giftcard,
                   listDaysOfWeek,
-                  () {},
                 ),
               ),
             ],
@@ -610,7 +508,7 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
               ),
             ],
             borderRadius: BorderRadius.circular(22),
-            color: ThemeModule.cWhiteBlackColor,
+            color: getItemColor(item),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
@@ -752,24 +650,22 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
         item.actionPrice > 0) {
       return ThemeModule.cLightGreenColor;
     } else {
-      return ThemeModule.cScrollbarColor;
+      return ThemeModule.cWhiteBlackColor;
     }
   }
 
   Widget getItemListWidget() {
-    return isItemsLoading
-        ? Widgets().getLoadingWidget(context)
-        : ListView.builder(
-            controller:
-                _scrollController, // Keep if you need scroll controller features
-            itemExtent: 125,
-            itemCount: listItems.length,
-            shrinkWrap: true, // Add this
-            itemBuilder: (context, index) {
-              BenchmarkItem item = listItems[index];
-              return getWidgetItemCard(item);
-            },
-          );
+    return ListView.builder(
+      controller:
+          _scrollController, // Keep if you need scroll controller features
+      itemExtent: 125,
+      itemCount: listItems.length,
+      shrinkWrap: true, // Add this
+      itemBuilder: (context, index) {
+        BenchmarkItem item = listItems[index];
+        return getWidgetItemCard(item);
+      },
+    );
   }
 
   Widget getTypedQuantityWidget(double quantity) {
@@ -879,48 +775,152 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
         child: Padding(
           padding: const EdgeInsets.all(8.0),
           child: !isLoading
-              ? Column(
-                  verticalDirection: VerticalDirection.down,
-                  children: [
-                    getWidgetClientFilter(),
-                    Widgets().getInvoiceChooseCardWidget(
-                      context,
-                      documentItems.client.clientName,
-                      '${lan.getTranslatedText('code')}:${documentItems.client.clientCode}    ${lan.getTranslatedText('clientDebt')}:${documentItems.client.clientDebt}₼',
-                      'chooseClient',
-                      Icons.supervisor_account_sharp,
-                      isClientChosen,
-                      () => onClientTap(),
-                    ),
-                    Widgets().getInvoiceChooseCardWidget(
-                      context,
-                      listCategoryTypes[selectedCategoryType],
-                      'categoryType',
-                      'chooseCategoryType',
-                      Icons.category,
-                      true,
-                      () => onCategoryTypeTap(),
-                    ), //Client
+              ? SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    verticalDirection: VerticalDirection.down,
+                    children: [
+                      getWidgetClientFilter(),
+                      Widgets().getInvoiceChooseCardWidget(
+                        context,
+                        documentItems.client.clientName,
+                        '${lan.getTranslatedText('code')}:${documentItems.client.clientCode}    ${lan.getTranslatedText('clientDebt')}:${documentItems.client.clientDebt}₼',
+                        'chooseClient',
+                        Icons.supervisor_account_sharp,
+                        isClientChosen,
+                        () => onClientTap(),
+                      ),
+                      listFirms.isNotEmpty
+                          ? Widgets().getInvoiceMultiSelectWidgetString(
+                              context,
+                              'firms',
+                              'firmsSelection',
+                              Icons.business,
+                              listFirms,
+                              (l) {
+                                setState(() {
+                                  listCategories1 = [];
+                                  listCategories2 = [];
+                                  List<String> listCategories1_ = [];
+                                  for (String firm in l) {
+                                    listCategories1_.addAll(
+                                      listAllItems
+                                          .where((e) => e.firm == firm)
+                                          .map((e) => e.category1)
+                                          .toSet(),
+                                    );
+                                  }
+                                  listCategories1 = listCategories1_
+                                      .toSet()
+                                      .toList()
+                                      .map(
+                                        (e) => DropdownItem(
+                                          value: e,
+                                          label: e,
+                                          selected: true,
+                                        ),
+                                      )
+                                      .toList();
 
-                    Widgets().getInvoiceChooseCardWidget(
-                      context,
-                      selectedCategoryIndex == -1
-                          ? ''
-                          : listCategories
-                                .where(
-                                  (e) => e['bmcType'] == selectedCategoryType,
-                                )
-                                .toList()[selectedCategoryIndex]['bmcName']
-                                .toString(),
-                      'category',
-                      'chooseCategory',
-                      Icons.category_outlined,
-                      isSelectedCategory,
-                      () => onCategoryTap(),
-                    ), //Client
-                    const Divider(height: 10, thickness: 1),
-                    Expanded(child: getItemListWidget()),
-                  ],
+                                  List<String> listCategories2_ = [];
+                                  for (String category1 in listCategories1_) {
+                                    listCategories2_.addAll(
+                                      listAllItems
+                                          .where(
+                                            (e) => e.category1 == category1,
+                                          )
+                                          .map((e) => e.category2)
+                                          .toSet(),
+                                    );
+                                  }
+                                  listCategories2 = listCategories2_
+                                      .toSet()
+                                      .toList()
+                                      .map(
+                                        (e) => DropdownItem(
+                                          value: e,
+                                          label: e,
+                                          selected: true,
+                                        ),
+                                      )
+                                      .toList();
+
+                                  listItems = listAllItems
+                                      .where(
+                                        (e) => listCategories2_.contains(
+                                          e.category2,
+                                        ),
+                                      )
+                                      .toList();
+                                });
+                              },
+                            )
+                          : Container(),
+                      listCategories1.isNotEmpty
+                          ? Widgets().getInvoiceMultiSelectWidgetString(
+                              context,
+                              'category1',
+                              'category1Selection',
+                              Icons.category,
+                              listCategories1,
+                              (l) {
+                                setState(() {
+                                  List<String> listCategories2_ = [];
+                                  for (String category1 in l) {
+                                    listCategories2_.addAll(
+                                      listAllItems
+                                          .where(
+                                            (e) => e.category1 == category1,
+                                          )
+                                          .map((e) => e.category2)
+                                          .toSet(),
+                                    );
+                                  }
+                                  listCategories2 = listCategories2_
+                                      .toSet()
+                                      .toList()
+                                      .map(
+                                        (e) => DropdownItem(
+                                          value: e,
+                                          label: e,
+                                          selected: true,
+                                        ),
+                                      )
+                                      .toList();
+
+                                  listItems = listAllItems
+                                      .where(
+                                        (e) => listCategories2_.contains(
+                                          e.category2,
+                                        ),
+                                      )
+                                      .toList();
+                                });
+                              },
+                            )
+                          : Container(),
+                      listCategories2.isNotEmpty
+                          ? Widgets().getInvoiceMultiSelectWidgetString(
+                              context,
+                              'category2',
+                              'category2Selection',
+                              Icons.category,
+                              listCategories2,
+                              (l) {
+                                setState(() {
+                                  listItems = listAllItems
+                                      .where((e) => l.contains(e.category2))
+                                      .toList();
+                                });
+                              },
+                            )
+                          : Container(),
+                      const Divider(height: 10, thickness: 1),
+                      getItemListWidget(),
+                    ],
+                  ),
                 )
               : Widgets().getLoadingWidget(context),
         ),

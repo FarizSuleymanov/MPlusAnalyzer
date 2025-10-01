@@ -156,6 +156,12 @@ class LanguagePack {
       'dashboardReportForMonthly': 'Aylıq sənəd analizi',
       'dashboardReportForDaily': 'Günlük sənəd analizi',
       'lastDocDate': 'Sonuncu',
+      'category1': 'Kategori 1',
+      'category2': 'Kategori 2',
+      'category1Selection': 'Kategori 1 seçimi',
+      'category2Selection': 'Kategori 2 seçimi',
+      'firmsSelection': 'Firma seçimi',
+      'firms': 'Firmalar',
     },
     'tr': {
       'userName': 'Kullanıcı',

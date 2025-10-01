@@ -517,7 +517,6 @@ class Widgets {
     String label,
     IconData icon,
     List<DropdownItem<int>> items,
-    void Function() onSelectionChange,
   ) {
     return Card(
       margin: EdgeInsets.all(2),
@@ -577,47 +576,83 @@ class Widgets {
                       color: ThemeModule.cForeColor,
                     ),
                   ),
-                  onSelectionChange: (selectedItems) {
-                    // for (int i = 0; i < 10; i++) {
-                    //   int indexCount = selectedItems
-                    //       .where((e) => e.index == i)
-                    //       .length;
-                    //   if (indexCount > 1) {
-                    //     items
-                    //         .where(
-                    //           (item) => item.value.index == i && item.selected,
-                    //         )
-                    //         .forEach((item) {
-                    //           selectedItems
-                    //               .where(
-                    //                 (selectedItem) => selectedItem.index == i,
-                    //               )
-                    //               .forEach((selectedItem) {
-                    //                 if (item.value == selectedItem) {
-                    //                   controller.unselectWhere(
-                    //                     (p) => p.value == item.value,
-                    //                   );
-                    //                 }
-                    //               });
-                    //         });
-                    //   } else if (indexCount == 0) {
-                    //     DropdownItem<MultiSelectData>? user =
-                    //         items
-                    //             .where((item) => item.value.index == i)
-                    //             .isNotEmpty
-                    //         ? items.where((item) => item.value.index == i).first
-                    //         : null;
-                    //     if (user != null) {
-                    //       controller.selectWhere(
-                    //         (item) => item.value == user.value,
-                    //       );
-                    //     }
-                    //   }
-                    // }
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 5),
+        ],
+      ),
+    );
+  }
 
-                    // items = controller.items;
-                    // onSelectionChange();
-                  },
+  Widget getInvoiceMultiSelectWidgetString(
+    BuildContext context,
+    String elKey,
+    String label,
+    IconData icon,
+    List<DropdownItem<String>> items,
+    void Function(List<String>) onSelectionChange,
+  ) {
+    return Card(
+      margin: EdgeInsets.all(2),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage('assets/icons/icon_background.png'),
+                      fit: BoxFit.fill,
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      size: 30,
+                      icon,
+                      color: ThemeModule.cWhiteBlackColor,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: MultiDropdown<String>(
+                  key: ValueKey(items.hashCode),
+                  items: items,
+                  enabled: true,
+                  chipDecoration: ChipDecoration(
+                    backgroundColor: ThemeModule.cForeColor,
+                    labelStyle: TextStyle(color: ThemeModule.cWhiteBlackColor),
+                    wrap: true,
+                    runSpacing: 2,
+                    spacing: 10,
+                    deleteIcon: Icon(null),
+                  ),
+                  fieldDecoration: FieldDecoration(
+                    labelText: lan.getTranslatedText(elKey),
+                    hintText: lan.getTranslatedText(elKey),
+                    hintStyle: const TextStyle(color: Colors.black87),
+                    showClearIcon: false,
+                    border: InputBorder.none,
+                  ),
+                  dropdownDecoration: DropdownDecoration(
+                    marginTop: 2,
+                    maxHeight: 500,
+                  ),
+                  dropdownItemDecoration: DropdownItemDecoration(
+                    selectedIcon: Icon(
+                      Icons.check_box,
+                      color: ThemeModule.cForeColor,
+                    ),
+                  ),
+                  onSelectionChange: onSelectionChange,
                 ),
               ),
             ],

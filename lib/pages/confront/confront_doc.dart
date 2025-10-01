@@ -385,7 +385,6 @@ class _ConfrontDocState extends State<ConfrontDoc> {
                   'daysOfWeekSelection',
                   Icons.card_giftcard,
                   listDaysOfWeek,
-                  () {},
                 ),
               ),
               GlobalParams.params.googleApiKey != ''

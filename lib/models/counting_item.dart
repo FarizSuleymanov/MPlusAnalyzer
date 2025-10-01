@@ -9,6 +9,7 @@ class CountingItem {
   late double quantityTyped3;
   late double quantityTyped4;
   late double quantityTyped5;
+  late bool quantityInserted;
 
   double get quantityTypedTotal =>
       quantityTyped1 +
@@ -28,6 +29,7 @@ class CountingItem {
     required this.quantityTyped3,
     required this.quantityTyped4,
     required this.quantityTyped5,
+    this.quantityInserted = false,
   });
 }
 

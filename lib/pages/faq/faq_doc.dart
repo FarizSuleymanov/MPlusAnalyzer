@@ -487,7 +487,6 @@ class _FaqDocState extends State<FaqDoc> {
               'daysOfWeekSelection',
               Icons.card_giftcard,
               listDaysOfWeek,
-              () {},
             ),
           ),
           GlobalParams.params.googleApiKey != ''

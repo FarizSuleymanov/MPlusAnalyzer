@@ -266,7 +266,7 @@ class _CountingDocState extends State<CountingDoc> {
             ),
           ],
           borderRadius: BorderRadius.circular(22),
-          color: item.quantityTypedTotal > 0
+          color: item.quantityInserted
               ? ThemeModule.cLightGreenColor
               : ThemeModule.cWhiteBlackColor,
         ),
