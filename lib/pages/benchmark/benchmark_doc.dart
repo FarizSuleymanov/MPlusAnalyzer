@@ -18,6 +18,7 @@ import 'package:multi_dropdown/multi_dropdown.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/client.dart';
 import '../../models/document_items.dart';
+import '../../utils/card_choose.dart';
 import '../../utils/messages.dart';
 import '../../widgets/keypad.dart';
 import '../../widgets/tri_state_checkbox.dart';
@@ -52,9 +53,8 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
   final controllerDaysOfWeekMultiSelect = MultiSelectController<int>();
   LatLng _currentLocation = LatLng(0, 0);
   List<DropdownItem<int>> listDaysOfWeek = [];
-  List<DropdownItem<String>> listFirms = [],
-      listCategories1 = [],
-      listCategories2 = [];
+  List<String> listFirms = [], listCategories1 = [], listCategories2 = [];
+  String selectedFirm = '', selectedCategory1 = '', selectedCategory2 = '';
   DocumentItems documentItems = DocumentItems(
     client: Client(
       clientCode: '',
@@ -96,39 +96,36 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
         body,
       );
       if (response.code == 200) {
-        List<dynamic> data = jsonDecode(response.message) as List;
-        listItems.clear();
-        data.forEach((e) {
-          listItems.add(
-            BenchmarkItem(
-              guid: e['bmiGuid'],
-              itemCode: e['itemCode'],
-              itemName: e['itemName'],
-              category1: e['category1'],
-              category2: e['category2'],
-              firm: e['firm'],
-              weight: e['weight'].toDouble(),
-              listPrice: e['listPrice'].toDouble(),
-              standPrice: e['standPrice'].toDouble(),
-              actionPrice: e['actionPrice'].toDouble(),
-              comment: e['comment'],
-            ),
-          );
-        });
+        List _list = jsonDecode(response.message) as List;
+        listAllItems = _list
+            .map(
+              (e) => BenchmarkItem(
+                guid: e['bmiGuid'],
+                itemCode: e['itemCode'],
+                itemName: e['itemName'],
+                category1: e['category1'],
+                category2: e['category2'],
+                firm: e['firm'],
+                weight: e['weight'].toDouble(),
+                listPrice: e['listPrice'].toDouble(),
+                standPrice: e['standPrice'].toDouble(),
+                actionPrice: e['actionPrice'].toDouble(),
+                comment: e['comment'],
+              ),
+            )
+            .toList();
       }
     } else {
       const uuid = Uuid();
       bmkGuid = uuid.v4();
       await fillAllItems();
-
-      listFirms = listAllItems
-          .map((e) => e.firm)
-          .toSet()
-          .toList()
-          .map((firm) => DropdownItem(value: firm, label: firm))
-          .toList();
     }
-
+    listFirms = listAllItems
+        .map((e) => e.firm)
+        .toSet()
+        .toList()
+        .map((firm) => firm)
+        .toList();
     setState(() {
       isLoading = false;
     });
@@ -167,6 +164,14 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
             onPressed: () {
               setState(() {
                 item.comment = _txtCommentController.text;
+                listAllItems.forEach((element) {
+                  if (element.guid == item.guid) {
+                    element.weight = item.weight;
+                    element.listPrice = item.listPrice;
+                    element.standPrice = item.standPrice;
+                    element.actionPrice = item.actionPrice;
+                  }
+                });
               });
               Navigator.of(context).pop();
             },
@@ -178,7 +183,7 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
 
   save() async {
     String msgKey = '';
-    List<BenchmarkItem> typedItems = listItems
+    List<BenchmarkItem> typedItems = listAllItems
         .where(
           (e) =>
               e.weight > 0 ||
@@ -324,12 +329,79 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
     setState(() {});
   }
 
+  Future<void> onFirmTap() async {
+    if (listFirms.isNotEmpty) {
+      await CardChoose(context).showCardModalBottomSheet(listFirms, (i) {
+        setState(() {
+          selectedFirm = listFirms[i];
+          selectedCategory1 = '';
+          selectedCategory2 = '';
+          listCategories1 = [];
+          listCategories2 = [];
+          listItems = [];
+          listCategories1 = listAllItems
+              .where((e) => e.firm == selectedFirm)
+              .map((e) => e.category1)
+              .toSet()
+              .toList();
+        });
+      });
+    }
+  }
+
+  Future<void> onCategory1Tap() async {
+    if (listCategories1.isNotEmpty) {
+      await CardChoose(context).showCardModalBottomSheet(listCategories1, (i) {
+        setState(() {
+          selectedCategory1 = listCategories1[i];
+          selectedCategory2 = '';
+          listCategories2 = [];
+          listItems = listAllItems
+              .where(
+                (e) =>
+                    e.firm == selectedFirm && e.category1 == selectedCategory1,
+              )
+              .toList();
+          listCategories2 = listAllItems
+              .where(
+                (e) =>
+                    e.category1 == selectedCategory1 && e.firm == selectedFirm,
+              )
+              .map((e) => e.category2)
+              .toSet()
+              .toList();
+          isLoading = false;
+        });
+      });
+    }
+  }
+
+  Future<void> onCategory2Tap() async {
+    if (listCategories2.isNotEmpty) {
+      await CardChoose(context).showCardModalBottomSheet(listCategories2, (i) {
+        setState(() {
+          selectedCategory2 = listCategories2[i];
+          listItems = listAllItems
+              .where(
+                (e) =>
+                    e.firm == selectedFirm &&
+                    e.category1 == selectedCategory1 &&
+                    e.category2 == selectedCategory2,
+              )
+              .toList();
+          isLoading = false;
+        });
+      });
+    }
+  }
+
   @override
   void initState() {
-    clientFilterExpansibleController.expand();
+    super.initState();
+
+    clientFilterExpansibleController.collapse();
 
     fillElements();
-    super.initState();
   }
 
   Widget getWidgetClientFilter() {
@@ -480,6 +552,14 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
     return GestureDetector(
       onTap: () async {
         await KeyPad().showItemBenchmarkKeyPadDialog(context, item);
+        listAllItems.forEach((element) {
+          if (element.guid == item.guid) {
+            element.weight = item.weight;
+            element.listPrice = item.listPrice;
+            element.standPrice = item.standPrice;
+            element.actionPrice = item.actionPrice;
+          }
+        });
         setState(() {});
       },
       child: Slidable(
@@ -656,8 +736,7 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
 
   Widget getItemListWidget() {
     return ListView.builder(
-      controller:
-          _scrollController, // Keep if you need scroll controller features
+      controller: _scrollController,
       itemExtent: 125,
       itemCount: listItems.length,
       shrinkWrap: true, // Add this
@@ -775,152 +854,191 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
         child: Padding(
           padding: const EdgeInsets.all(8.0),
           child: !isLoading
-              ? SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    verticalDirection: VerticalDirection.down,
-                    children: [
-                      getWidgetClientFilter(),
-                      Widgets().getInvoiceChooseCardWidget(
-                        context,
-                        documentItems.client.clientName,
-                        '${lan.getTranslatedText('code')}:${documentItems.client.clientCode}    ${lan.getTranslatedText('clientDebt')}:${documentItems.client.clientDebt}₼',
-                        'chooseClient',
-                        Icons.supervisor_account_sharp,
-                        isClientChosen,
-                        () => onClientTap(),
-                      ),
-                      listFirms.isNotEmpty
-                          ? Widgets().getInvoiceMultiSelectWidgetString(
+              ? Column(
+                  children: [
+                    SizedBox(
+                      height: 300,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          verticalDirection: VerticalDirection.down,
+                          children: [
+                            getWidgetClientFilter(),
+                            Widgets().getInvoiceChooseCardWidget(
                               context,
+                              documentItems.client.clientName,
+                              '${lan.getTranslatedText('code')}:${documentItems.client.clientCode}    ${lan.getTranslatedText('clientDebt')}:${documentItems.client.clientDebt}₼',
+                              'chooseClient',
+                              Icons.supervisor_account_sharp,
+                              isClientChosen,
+                              () => onClientTap(),
+                            ),
+                            Widgets().getInvoiceChooseCardWidget(
+                              context,
+                              selectedFirm,
                               'firms',
                               'firmsSelection',
                               Icons.business,
-                              listFirms,
-                              (l) {
-                                setState(() {
-                                  listCategories1 = [];
-                                  listCategories2 = [];
-                                  List<String> listCategories1_ = [];
-                                  for (String firm in l) {
-                                    listCategories1_.addAll(
-                                      listAllItems
-                                          .where((e) => e.firm == firm)
-                                          .map((e) => e.category1)
-                                          .toSet(),
-                                    );
-                                  }
-                                  listCategories1 = listCategories1_
-                                      .toSet()
-                                      .toList()
-                                      .map(
-                                        (e) => DropdownItem(
-                                          value: e,
-                                          label: e,
-                                          selected: true,
-                                        ),
-                                      )
-                                      .toList();
+                              selectedFirm != '' ? true : false,
+                              onFirmTap,
+                            ),
+                            selectedFirm != ''
+                                ? Widgets().getInvoiceChooseCardWidget(
+                                    context,
+                                    selectedCategory1,
+                                    'category1',
+                                    'category1Selection',
+                                    Icons.category,
+                                    selectedCategory1 != '' ? true : false,
+                                    onCategory1Tap,
+                                  )
+                                : Container(),
+                            selectedCategory1 != ''
+                                ? Widgets().getInvoiceChooseCardWidget(
+                                    context,
+                                    selectedCategory2,
+                                    'category2',
+                                    'category2Selection',
+                                    Icons.category,
+                                    selectedCategory2 != '' ? true : false,
+                                    onCategory2Tap,
+                                  )
+                                : Container(),
 
-                                  List<String> listCategories2_ = [];
-                                  for (String category1 in listCategories1_) {
-                                    listCategories2_.addAll(
-                                      listAllItems
-                                          .where(
-                                            (e) => e.category1 == category1,
-                                          )
-                                          .map((e) => e.category2)
-                                          .toSet(),
-                                    );
-                                  }
-                                  listCategories2 = listCategories2_
-                                      .toSet()
-                                      .toList()
-                                      .map(
-                                        (e) => DropdownItem(
-                                          value: e,
-                                          label: e,
-                                          selected: true,
-                                        ),
-                                      )
-                                      .toList();
-
-                                  listItems = listAllItems
-                                      .where(
-                                        (e) => listCategories2_.contains(
-                                          e.category2,
-                                        ),
-                                      )
-                                      .toList();
-                                });
-                              },
-                            )
-                          : Container(),
-                      listCategories1.isNotEmpty
-                          ? Widgets().getInvoiceMultiSelectWidgetString(
-                              context,
-                              'category1',
-                              'category1Selection',
-                              Icons.category,
-                              listCategories1,
-                              (l) {
-                                setState(() {
-                                  List<String> listCategories2_ = [];
-                                  for (String category1 in l) {
-                                    listCategories2_.addAll(
-                                      listAllItems
-                                          .where(
-                                            (e) => e.category1 == category1,
-                                          )
-                                          .map((e) => e.category2)
-                                          .toSet(),
-                                    );
-                                  }
-                                  listCategories2 = listCategories2_
-                                      .toSet()
-                                      .toList()
-                                      .map(
-                                        (e) => DropdownItem(
-                                          value: e,
-                                          label: e,
-                                          selected: true,
-                                        ),
-                                      )
-                                      .toList();
-
-                                  listItems = listAllItems
-                                      .where(
-                                        (e) => listCategories2_.contains(
-                                          e.category2,
-                                        ),
-                                      )
-                                      .toList();
-                                });
-                              },
-                            )
-                          : Container(),
-                      listCategories2.isNotEmpty
-                          ? Widgets().getInvoiceMultiSelectWidgetString(
-                              context,
-                              'category2',
-                              'category2Selection',
-                              Icons.category,
-                              listCategories2,
-                              (l) {
-                                setState(() {
-                                  listItems = listAllItems
-                                      .where((e) => l.contains(e.category2))
-                                      .toList();
-                                });
-                              },
-                            )
-                          : Container(),
-                      const Divider(height: 10, thickness: 1),
-                      getItemListWidget(),
-                    ],
-                  ),
+                            // listFirms.isNotEmpty
+                            //     ? Widgets().getInvoiceMultiSelectWidgetString(
+                            //         context,
+                            //         'firms',
+                            //         'firmsSelection',
+                            //         Icons.business,
+                            //         listFirms,
+                            //         (l) {
+                            //           setState(() {
+                            //             listCategories1 = [];
+                            //             listCategories2 = [];
+                            //             List<String> listCategories1_ = [];
+                            //             for (String firm in l) {
+                            //               listCategories1_.addAll(
+                            //                 listAllItems
+                            //                     .where((e) => e.firm == firm)
+                            //                     .map((e) => e.category1)
+                            //                     .toSet(),
+                            //               );
+                            //             }
+                            //             listCategories1 = listCategories1_
+                            //                 .toSet()
+                            //                 .toList()
+                            //                 .map(
+                            //                   (e) => DropdownItem(
+                            //                     value: e,
+                            //                     label: e,
+                            //                     selected: true,
+                            //                   ),
+                            //                 )
+                            //                 .toList();
+                            //
+                            //             List<String> listCategories2_ = [];
+                            //             for (String category1 in listCategories1_) {
+                            //               listCategories2_.addAll(
+                            //                 listAllItems
+                            //                     .where(
+                            //                       (e) => e.category1 == category1,
+                            //                     )
+                            //                     .map((e) => e.category2)
+                            //                     .toSet(),
+                            //               );
+                            //             }
+                            //             listCategories2 = listCategories2_
+                            //                 .toSet()
+                            //                 .toList()
+                            //                 .map(
+                            //                   (e) => DropdownItem(
+                            //                     value: e,
+                            //                     label: e,
+                            //                     selected: true,
+                            //                   ),
+                            //                 )
+                            //                 .toList();
+                            //
+                            //             listItems = listAllItems
+                            //                 .where(
+                            //                   (e) => listCategories2_.contains(
+                            //                     e.category2,
+                            //                   ),
+                            //                 )
+                            //                 .toList();
+                            //           });
+                            //         },
+                            //       )
+                            //     : Container(),
+                            // listCategories1.isNotEmpty
+                            //     ? Widgets().getInvoiceMultiSelectWidgetString(
+                            //         context,
+                            //         'category1',
+                            //         'category1Selection',
+                            //         Icons.category,
+                            //         listCategories1,
+                            //         (l) {
+                            //           setState(() {
+                            //             List<String> listCategories2_ = [];
+                            //             for (String category1 in l) {
+                            //               listCategories2_.addAll(
+                            //                 listAllItems
+                            //                     .where(
+                            //                       (e) => e.category1 == category1,
+                            //                     )
+                            //                     .map((e) => e.category2)
+                            //                     .toSet(),
+                            //               );
+                            //             }
+                            //             listCategories2 = listCategories2_
+                            //                 .toSet()
+                            //                 .toList()
+                            //                 .map(
+                            //                   (e) => DropdownItem(
+                            //                     value: e,
+                            //                     label: e,
+                            //                     selected: true,
+                            //                   ),
+                            //                 )
+                            //                 .toList();
+                            //
+                            //             listItems = listAllItems
+                            //                 .where(
+                            //                   (e) => listCategories2_.contains(
+                            //                     e.category2,
+                            //                   ),
+                            //                 )
+                            //                 .toList();
+                            //           });
+                            //         },
+                            //       )
+                            //     : Container(),
+                            // listCategories2.isNotEmpty
+                            //     ? Widgets().getInvoiceMultiSelectWidgetString(
+                            //         context,
+                            //         'category2',
+                            //         'category2Selection',
+                            //         Icons.category,
+                            //         listCategories2,
+                            //         (l) {
+                            //           setState(() {
+                            //             listItems = listAllItems
+                            //                 .where((e) => l.contains(e.category2))
+                            //                 .toList();
+                            //           });
+                            //         },
+                            //       )
+                            //     : Container(),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 10, thickness: 1),
+                    Expanded(child: getItemListWidget()),
+                  ],
                 )
               : Widgets().getLoadingWidget(context),
         ),
