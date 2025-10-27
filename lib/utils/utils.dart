@@ -218,7 +218,7 @@ class Utils {
     return treeNodeMain;
   }
 
-  Future<List<Client>> getClinetList({
+  Future<List<Client>> getClientList({
     required BuildContext context,
     required double currentLatitude,
     required double currentLongitude,
@@ -353,7 +353,7 @@ class Utils {
 
     //get selected days of week
 
-    List<Client> listClient = await Utils().getClinetList(
+    List<Client> listClient = await Utils().getClientList(
       context: context,
       currentLatitude: clLatitude,
       currentLongitude: clLongitude,

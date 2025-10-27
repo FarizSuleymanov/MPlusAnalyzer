@@ -126,7 +126,7 @@ class _FaqDocState extends State<FaqDoc> {
       String selectedDaysOfWeek = controllerDaysOfWeekMultiSelect.selectedItems
           .map((e) => e.value.toString())
           .join(',');
-      listClient_ = await Utils().getClinetList(
+      listClient_ = await Utils().getClientList(
         context: context,
         currentLatitude: _currentLocation.latitude,
         currentLongitude: _currentLocation.longitude,
