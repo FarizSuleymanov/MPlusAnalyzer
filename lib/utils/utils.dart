@@ -468,4 +468,22 @@ class Utils {
       DropdownItem(label: lan.getTranslatedText('sunday'), value: 7),
     ];
   }
+
+  bool havePermission(int module) {
+    switch (module) {
+      case 1:
+        return GlobalParams.userParams.confrontMod == 1 ? true : false;
+
+      case 2:
+        return GlobalParams.userParams.benchmarkMod == 1 ? true : false;
+
+      case 3:
+        return GlobalParams.userParams.countingMod == 1 ? true : false;
+
+      case 4:
+        return GlobalParams.userParams.faqMod == 1 ? true : false;
+      default:
+        return false;
+    }
+  }
 }

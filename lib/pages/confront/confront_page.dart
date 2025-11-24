@@ -114,7 +114,7 @@ class _ConfrontPageState extends State<ConfrontPage> {
 
   Widget getWidgetDocumentCard(Map<String, dynamic> documentData) {
     String docGuid = documentData['confrontGuid'];
-
+    bool havePermissionForFAQ = Utils().havePermission(4);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Slidable(
@@ -154,32 +154,41 @@ class _ConfrontPageState extends State<ConfrontPage> {
               },
               Colors.lightGreenAccent,
             ),
-            Widgets().getSlideElement('faq', Icons.notes_rounded, () async {
-              String clientCode = documentData['clientCode'];
-              String clientName = documentData['clientName'];
-              Client client_ = Client(
-                clientCode: clientCode,
-                clientName: clientName,
-                seller: '',
-                clientLatitude: 0,
-                clientLongitude: 0,
-                clientDebt: 0,
-                lastConfrontDate: '',
-                lastFaqDate: '',
-                lastBenchmarkDate: '',
-                distance: 0,
-                statusConfront: 0,
-                statusFaq: 0,
-                statusBmk: 0,
-              );
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      FaqDoc(client: client_, listClientCodesFromDocList: []),
-                ),
-              );
-            }, Colors.cyanAccent),
+            havePermissionForFAQ
+                ? Widgets().getSlideElement(
+                    'faq',
+                    Icons.notes_rounded,
+                    () async {
+                      String clientCode = documentData['clientCode'];
+                      String clientName = documentData['clientName'];
+                      Client client_ = Client(
+                        clientCode: clientCode,
+                        clientName: clientName,
+                        seller: '',
+                        clientLatitude: 0,
+                        clientLongitude: 0,
+                        clientDebt: 0,
+                        lastConfrontDate: '',
+                        lastFaqDate: '',
+                        lastBenchmarkDate: '',
+                        distance: 0,
+                        statusConfront: 0,
+                        statusFaq: 0,
+                        statusBmk: 0,
+                      );
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FaqDoc(
+                            client: client_,
+                            listClientCodesFromDocList: [],
+                          ),
+                        ),
+                      );
+                    },
+                    Colors.cyanAccent,
+                  )
+                : Container(),
           ],
         ),
         endActionPane: ActionPane(

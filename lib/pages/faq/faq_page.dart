@@ -163,7 +163,7 @@ class _FaqPageState extends State<FaqPage> {
 
   Widget getWidgetDocumentCard(Map<String, dynamic> documentData) {
     String docNumber = documentData['docNumber'].toString();
-
+    bool havePermissionForConfront = Utils().havePermission(1);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Slidable(
@@ -188,32 +188,34 @@ class _FaqPageState extends State<FaqPage> {
               },
               Colors.lightBlueAccent,
             ),
-            Widgets().getSlideElement(
-              'confrontShort',
-              Icons.notes_rounded,
-              () async {
-                String clientCode = documentData['clientCode'];
+            havePermissionForConfront
+                ? Widgets().getSlideElement(
+                    'confrontShort',
+                    Icons.notes_rounded,
+                    () async {
+                      String clientCode = documentData['clientCode'];
 
-                Client client_ = await getClientData(clientCode);
-                if (client_.clientCode.isEmpty) {
-                  Messages(
-                    context: context,
-                  ).showWarningDialog(lan.getTranslatedText('clientNotFound'));
-                  return;
-                }
+                      Client client_ = await getClientData(clientCode);
+                      if (client_.clientCode.isEmpty) {
+                        Messages(context: context).showWarningDialog(
+                          lan.getTranslatedText('clientNotFound'),
+                        );
+                        return;
+                      }
 
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ConfrontDoc(
-                      client: client_,
-                      listClientCodesFromDocList: [],
-                    ),
-                  ),
-                );
-              },
-              Colors.cyanAccent,
-            ),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ConfrontDoc(
+                            client: client_,
+                            listClientCodesFromDocList: [],
+                          ),
+                        ),
+                      );
+                    },
+                    Colors.cyanAccent,
+                  )
+                : Container(),
           ],
         ),
         endActionPane: ActionPane(

@@ -169,27 +169,7 @@ class _OperationsState extends State<Operations> {
     String opName,
     void Function() onTap,
   ) {
-    bool havePermission = true;
-    switch (module) {
-      case 1:
-        havePermission = GlobalParams.userParams.confrontMod == 1
-            ? true
-            : false;
-        break;
-      case 2:
-        havePermission = GlobalParams.userParams.benchmarkMod == 1
-            ? true
-            : false;
-        break;
-      case 3:
-        havePermission = GlobalParams.userParams.countingMod == 1
-            ? true
-            : false;
-        break;
-      case 4:
-        havePermission = GlobalParams.userParams.faqMod == 1 ? true : false;
-        break;
-    }
+    bool havePermission = Utils().havePermission(module);
 
     return havePermission
         ? Padding(
