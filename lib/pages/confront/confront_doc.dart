@@ -144,7 +144,7 @@ class _ConfrontDocState extends State<ConfrontDoc> {
   void fillElements() async {
     _currentLocation = await Utils().getCurrentLocation(context);
 
-    txtDebtFilter.text = '1000';
+    txtDebtFilter.text = '0';
 
     if (widget.confrontData != null) {
       isNew = false;

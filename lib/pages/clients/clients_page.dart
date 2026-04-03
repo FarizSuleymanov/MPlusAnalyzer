@@ -236,18 +236,19 @@ class _ClientsPageState extends State<ClientsPage> {
           },
           child: Center(child: Text(lan.getTranslatedText('route'))),
         ),
-        PopupMenuItem<String>(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    ClientExtraPage(client.clientCode, client.clientName),
-              ),
-            );
-          },
-          child: Center(child: Text(lan.getTranslatedText('extra'))),
-        ),
+        if (widget.module != 2)
+          PopupMenuItem<String>(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      ClientExtraPage(client.clientCode, client.clientName),
+                ),
+              );
+            },
+            child: Center(child: Text(lan.getTranslatedText('extra'))),
+          ),
       ],
       elevation: 8.0,
     );
@@ -258,40 +259,46 @@ class _ClientsPageState extends State<ClientsPage> {
       padding: const EdgeInsets.all(4.0),
       child: Slidable(
         closeOnScroll: true,
-        startActionPane: ActionPane(
-          extentRatio: 0.6,
-          motion: const ScrollMotion(),
-          children: [
-            Widgets().getSlideElement(
-              'clientExtra',
-              Icons.speaker_notes,
-              () async {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ClientExtraPage(client.clientCode, client.clientName),
+        startActionPane: widget.module != 2
+            ? ActionPane(
+                extentRatio: 0.6,
+                motion: const ScrollMotion(),
+                children: [
+                  Widgets().getSlideElement(
+                    'clientExtra',
+                    Icons.speaker_notes,
+                    () async {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ClientExtraPage(
+                            client.clientCode,
+                            client.clientName,
+                          ),
+                        ),
+                      );
+                    },
+                    Colors.lightBlueAccent,
                   ),
-                );
-              },
-              Colors.lightBlueAccent,
-            ),
-            Widgets().getSlideElement(
-              'clientConfronts',
-              Icons.notes_rounded,
-              () async {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ConfrontExtra(client.clientCode, client.clientName),
+                  Widgets().getSlideElement(
+                    'clientConfronts',
+                    Icons.notes_rounded,
+                    () async {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ConfrontExtra(
+                            client.clientCode,
+                            client.clientName,
+                          ),
+                        ),
+                      );
+                    },
+                    Colors.lightGreenAccent,
                   ),
-                );
-              },
-              Colors.lightGreenAccent,
-            ),
-          ],
-        ),
+                ],
+              )
+            : null,
         endActionPane: ActionPane(
           extentRatio: 0.3,
           motion: const ScrollMotion(),

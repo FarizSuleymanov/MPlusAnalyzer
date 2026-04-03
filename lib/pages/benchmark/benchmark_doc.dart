@@ -72,7 +72,7 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
       statusBmk: 0,
     ),
   );
-  String bmkGuid = '';
+  String bmkGuid = '', _filterKey = '';
 
   fillElements() async {
     _currentLocation = await Utils().getCurrentLocation(context);
@@ -120,12 +120,7 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
       bmkGuid = uuid.v4();
       await fillAllItems();
     }
-    listFirms = listAllItems
-        .map((e) => e.firm)
-        .toSet()
-        .toList()
-        .map((firm) => firm)
-        .toList();
+    listCategories1 = listAllItems.map((e) => e.category1).toSet().toList();
     setState(() {
       isLoading = false;
     });
@@ -260,7 +255,8 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
       body_,
     );
     if (response.code == 200) {
-      List _list = jsonDecode(response.message) as List;
+      Map data = jsonDecode(response.message);
+      List _list = data['items'] as List;
       listAllItems = _list
           .map(
             (e) => BenchmarkItem(
@@ -276,20 +272,20 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
     }
   }
 
-  void _onSearchChanged(String filterKey_) {
-    if (filterKey_.isNotEmpty) {
-      for (int i = 0; i < listItems.length; i++) {
-        final filter = filterKey_.toLowerCase();
-        if (listItems[i].itemCode.toLowerCase().contains(filter) ||
-            listItems[i].itemName.toLowerCase().contains(filter)) {
-          Utils().scrollToIndex(_scrollController, i, itemExtent: 125);
-          break;
-        }
-      }
-    } else {
-      Utils().scrollToIndex(_scrollController, 0);
-    }
-  }
+  // void _onSearchChanged(String filterKey_) {
+  //   if (filterKey_.isNotEmpty) {
+  //     for (int i = 0; i < listItems.length; i++) {
+  //       final filter = filterKey_.toLowerCase();
+  //       if (listItems[i].itemCode.toLowerCase().contains(filter) ||
+  //           listItems[i].itemName.toLowerCase().contains(filter)) {
+  //         Utils().scrollToIndex(_scrollController, i, itemExtent: 125);
+  //         break;
+  //       }
+  //     }
+  //   } else {
+  //     Utils().scrollToIndex(_scrollController, 0);
+  //   }
+  // }
 
   Future<void> onClientTap() async {
     List<Client> listClient_ = [];
@@ -329,39 +325,37 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
     setState(() {});
   }
 
-  Future<void> onFirmTap() async {
-    if (listFirms.isNotEmpty) {
-      await CardChoose(context).showCardModalBottomSheet(listFirms, (i) {
-        setState(() {
-          selectedFirm = listFirms[i];
-          selectedCategory1 = '';
-          selectedCategory2 = '';
-          listCategories1 = [];
-          listCategories2 = [];
-          listItems = [];
-          listCategories1 = listAllItems
-              .where((e) => e.firm == selectedFirm)
-              .map((e) => e.category1)
-              .toSet()
-              .toList();
-        });
-      });
-    }
-  }
-
   Future<void> onCategory1Tap() async {
     if (listCategories1.isNotEmpty) {
       await CardChoose(context).showCardModalBottomSheet(listCategories1, (i) {
         setState(() {
           selectedCategory1 = listCategories1[i];
           selectedCategory2 = '';
+          selectedFirm = '';
           listCategories2 = [];
-          listItems = listAllItems
-              .where(
-                (e) =>
-                    e.firm == selectedFirm && e.category1 == selectedCategory1,
-              )
+          listFirms = [];
+          listItems = [];
+
+          listFirms = listAllItems
+              .where((e) => e.category1 == selectedCategory1)
+              .map((e) => e.firm)
+              .toSet()
               .toList();
+
+          isLoading = false;
+        });
+      });
+    }
+  }
+
+  Future<void> onFirmTap() async {
+    if (listFirms.isNotEmpty) {
+      await CardChoose(context).showCardModalBottomSheet(listFirms, (i) {
+        setState(() {
+          selectedFirm = listFirms[i];
+          selectedCategory2 = '';
+          listCategories2 = [];
+
           listCategories2 = listAllItems
               .where(
                 (e) =>
@@ -370,7 +364,13 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
               .map((e) => e.category2)
               .toSet()
               .toList();
-          isLoading = false;
+
+          listItems = listAllItems
+              .where(
+                (e) =>
+                    e.firm == selectedFirm && e.category1 == selectedCategory1,
+              )
+              .toList();
         });
       });
     }
@@ -735,13 +735,24 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
   }
 
   Widget getItemListWidget() {
+    List<BenchmarkItem> listItems_ = _filterKey.isEmpty
+        ? listItems
+        : listItems
+              .where(
+                (e) =>
+                    e.itemName.toLowerCase().contains(
+                      _filterKey.toLowerCase(),
+                    ) ||
+                    e.itemCode.toLowerCase().contains(_filterKey.toLowerCase()),
+              )
+              .toList();
     return ListView.builder(
       controller: _scrollController,
       itemExtent: 125,
-      itemCount: listItems.length,
+      itemCount: listItems_.length,
       shrinkWrap: true, // Add this
       itemBuilder: (context, index) {
-        BenchmarkItem item = listItems[index];
+        BenchmarkItem item = listItems_[index];
         return getWidgetItemCard(item);
       },
     );
@@ -786,7 +797,8 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
                   isSearching = !isSearching;
                   if (!isSearching) {
                     txtSearchController.clear();
-                    _onSearchChanged('');
+                    _filterKey = '';
+                    // _onSearchChanged('');
                   }
                 }),
                 child: Container(
@@ -845,7 +857,7 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
                 : Widgets().getSearchBar(
                     context,
                     txtSearchController,
-                    () => _onSearchChanged(txtSearchController.text),
+                    () => setState(() => _filterKey = txtSearchController.text),
                   ),
           ),
         ),
@@ -877,25 +889,26 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
                             ),
                             Widgets().getInvoiceChooseCardWidget(
                               context,
-                              selectedFirm,
-                              'firms',
-                              'firmsSelection',
-                              Icons.business,
-                              selectedFirm != '' ? true : false,
-                              onFirmTap,
+                              selectedCategory1,
+                              'category1',
+                              'category1Selection',
+                              Icons.category,
+                              selectedCategory1 != '' ? true : false,
+                              onCategory1Tap,
                             ),
-                            selectedFirm != ''
+                            selectedCategory1 != ''
                                 ? Widgets().getInvoiceChooseCardWidget(
                                     context,
-                                    selectedCategory1,
-                                    'category1',
-                                    'category1Selection',
-                                    Icons.category,
-                                    selectedCategory1 != '' ? true : false,
-                                    onCategory1Tap,
+                                    selectedFirm,
+                                    'firms',
+                                    'firmsSelection',
+                                    Icons.business,
+                                    selectedFirm != '' ? true : false,
+                                    onFirmTap,
                                   )
                                 : Container(),
-                            selectedCategory1 != ''
+
+                            selectedFirm != ''
                                 ? Widgets().getInvoiceChooseCardWidget(
                                     context,
                                     selectedCategory2,
@@ -906,132 +919,6 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
                                     onCategory2Tap,
                                   )
                                 : Container(),
-
-                            // listFirms.isNotEmpty
-                            //     ? Widgets().getInvoiceMultiSelectWidgetString(
-                            //         context,
-                            //         'firms',
-                            //         'firmsSelection',
-                            //         Icons.business,
-                            //         listFirms,
-                            //         (l) {
-                            //           setState(() {
-                            //             listCategories1 = [];
-                            //             listCategories2 = [];
-                            //             List<String> listCategories1_ = [];
-                            //             for (String firm in l) {
-                            //               listCategories1_.addAll(
-                            //                 listAllItems
-                            //                     .where((e) => e.firm == firm)
-                            //                     .map((e) => e.category1)
-                            //                     .toSet(),
-                            //               );
-                            //             }
-                            //             listCategories1 = listCategories1_
-                            //                 .toSet()
-                            //                 .toList()
-                            //                 .map(
-                            //                   (e) => DropdownItem(
-                            //                     value: e,
-                            //                     label: e,
-                            //                     selected: true,
-                            //                   ),
-                            //                 )
-                            //                 .toList();
-                            //
-                            //             List<String> listCategories2_ = [];
-                            //             for (String category1 in listCategories1_) {
-                            //               listCategories2_.addAll(
-                            //                 listAllItems
-                            //                     .where(
-                            //                       (e) => e.category1 == category1,
-                            //                     )
-                            //                     .map((e) => e.category2)
-                            //                     .toSet(),
-                            //               );
-                            //             }
-                            //             listCategories2 = listCategories2_
-                            //                 .toSet()
-                            //                 .toList()
-                            //                 .map(
-                            //                   (e) => DropdownItem(
-                            //                     value: e,
-                            //                     label: e,
-                            //                     selected: true,
-                            //                   ),
-                            //                 )
-                            //                 .toList();
-                            //
-                            //             listItems = listAllItems
-                            //                 .where(
-                            //                   (e) => listCategories2_.contains(
-                            //                     e.category2,
-                            //                   ),
-                            //                 )
-                            //                 .toList();
-                            //           });
-                            //         },
-                            //       )
-                            //     : Container(),
-                            // listCategories1.isNotEmpty
-                            //     ? Widgets().getInvoiceMultiSelectWidgetString(
-                            //         context,
-                            //         'category1',
-                            //         'category1Selection',
-                            //         Icons.category,
-                            //         listCategories1,
-                            //         (l) {
-                            //           setState(() {
-                            //             List<String> listCategories2_ = [];
-                            //             for (String category1 in l) {
-                            //               listCategories2_.addAll(
-                            //                 listAllItems
-                            //                     .where(
-                            //                       (e) => e.category1 == category1,
-                            //                     )
-                            //                     .map((e) => e.category2)
-                            //                     .toSet(),
-                            //               );
-                            //             }
-                            //             listCategories2 = listCategories2_
-                            //                 .toSet()
-                            //                 .toList()
-                            //                 .map(
-                            //                   (e) => DropdownItem(
-                            //                     value: e,
-                            //                     label: e,
-                            //                     selected: true,
-                            //                   ),
-                            //                 )
-                            //                 .toList();
-                            //
-                            //             listItems = listAllItems
-                            //                 .where(
-                            //                   (e) => listCategories2_.contains(
-                            //                     e.category2,
-                            //                   ),
-                            //                 )
-                            //                 .toList();
-                            //           });
-                            //         },
-                            //       )
-                            //     : Container(),
-                            // listCategories2.isNotEmpty
-                            //     ? Widgets().getInvoiceMultiSelectWidgetString(
-                            //         context,
-                            //         'category2',
-                            //         'category2Selection',
-                            //         Icons.category,
-                            //         listCategories2,
-                            //         (l) {
-                            //           setState(() {
-                            //             listItems = listAllItems
-                            //                 .where((e) => l.contains(e.category2))
-                            //                 .toList();
-                            //           });
-                            //         },
-                            //       )
-                            //     : Container(),
                           ],
                         ),
                       ),
