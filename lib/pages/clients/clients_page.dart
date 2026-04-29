@@ -149,6 +149,9 @@ class _ClientsPageState extends State<ClientsPage> {
     _markers.clear();
     for (Client client in listClients) {
       if (client.clientLongitude > 0 && client.clientLongitude > 0) {
+        String debtLine = widget.module != 1
+            ? '${lan.getTranslatedText('debt')}: ${client.clientDebt}₼'
+            : '';
         final marker = Marker(
           icon: BitmapDescriptor.defaultMarkerWithHue(
             getStatus(client)
@@ -160,7 +163,7 @@ class _ClientsPageState extends State<ClientsPage> {
           infoWindow: InfoWindow(
             title: client.clientName,
             snippet:
-                '${lan.getTranslatedText('distance')}: ${client.distance.toStringAsFixed(2)}km        ${lan.getTranslatedText('debt')}: ${client.clientDebt}₼',
+                '${lan.getTranslatedText('distance')}: ${client.distance.toStringAsFixed(2)}km      $debtLine',
             onTap: () => _showContextMenu(context, client),
           ),
           onTap: () {},
@@ -475,23 +478,25 @@ class _ClientsPageState extends State<ClientsPage> {
                             ),
                           ),
 
-                          Container(
-                            width: 100,
-                            child: Widgets().getRichText(
-                              lan.getTranslatedText('debt'),
-                              TextStyle(
-                                color: ThemeModule.cBlackWhiteColor,
-                                fontFamily: 'poppins_reguler',
-                                fontSize: 12,
-                              ),
-                              client.clientDebt.toStringAsFixed(2) + '₼',
-                              TextStyle(
-                                color: Colors.red,
-                                fontFamily: 'poppins_semibold',
-                                fontSize: 10,
-                              ),
-                            ),
-                          ),
+                          widget.module != 1
+                              ? Container(
+                                  width: 100,
+                                  child: Widgets().getRichText(
+                                    lan.getTranslatedText('debt'),
+                                    TextStyle(
+                                      color: ThemeModule.cBlackWhiteColor,
+                                      fontFamily: 'poppins_reguler',
+                                      fontSize: 12,
+                                    ),
+                                    client.clientDebt.toStringAsFixed(2) + '₼',
+                                    TextStyle(
+                                      color: Colors.red,
+                                      fontFamily: 'poppins_semibold',
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                )
+                              : Container(),
                         ],
                       ),
                       Padding(

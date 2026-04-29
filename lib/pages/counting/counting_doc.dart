@@ -433,155 +433,167 @@ class _CountingDocState extends State<CountingDoc> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (documentItems.warehouse.whId == 0) {
-            Messages(
-              context: context,
-            ).showSnackBar(lan.getTranslatedText('warehouseNotSelected'), 0);
-            return;
-          }
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => ItemsPage()),
-          ).then((value) {
-            if (value != null && value is CountingItem) {
-              bool isItemExists = listItems
-                  .where((e) => e.itemCode == value.itemCode)
-                  .isNotEmpty;
-              if (!isItemExists) {
-                listItems.add(value);
-              }
-              setState(() {});
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        Messages(context: context).showYesNoDialog(
+          lan.getTranslatedText('areYouSureYouWantToExit'),
+          () async {
+            Navigator.pop(context);
+          },
+        );
+      },
+      child: Scaffold(
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            if (documentItems.warehouse.whId == 0) {
+              Messages(
+                context: context,
+              ).showSnackBar(lan.getTranslatedText('warehouseNotSelected'), 0);
+              return;
             }
-          });
-        },
-        child: Icon(Icons.add, size: 32, color: Colors.white),
-        backgroundColor: ThemeModule.cForeColor,
-      ),
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(20.0),
-            bottomRight: Radius.circular(20.0),
-          ),
-          child: AppBar(
-            automaticallyImplyLeading: false,
-            actions: [
-              GestureDetector(
-                onTap: () => setState(() {
-                  isSearching = !isSearching;
-                  if (!isSearching) {
-                    txtSearchController.clear();
-                    _onSearchChanged('');
-                  }
-                }),
-                child: Container(
-                  height: 36,
-                  width: 36,
-                  child: Icon(
-                    size: 24,
-                    isSearching ? Icons.close : Icons.search,
-                    color: ThemeModule.cBlackWhiteColor,
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ItemsPage()),
+            ).then((value) {
+              if (value != null && value is CountingItem) {
+                bool isItemExists = listItems
+                    .where((e) => e.itemCode == value.itemCode)
+                    .isNotEmpty;
+                if (!isItemExists) {
+                  listItems.add(value);
+                }
+                setState(() {});
+              }
+            });
+          },
+          child: Icon(Icons.add, size: 32, color: Colors.white),
+          backgroundColor: ThemeModule.cForeColor,
+        ),
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(20.0),
+              bottomRight: Radius.circular(20.0),
+            ),
+            child: AppBar(
+              automaticallyImplyLeading: false,
+              actions: [
+                GestureDetector(
+                  onTap: () => setState(() {
+                    isSearching = !isSearching;
+                    if (!isSearching) {
+                      txtSearchController.clear();
+                      _onSearchChanged('');
+                    }
+                  }),
+                  child: Container(
+                    height: 36,
+                    width: 36,
+                    child: Icon(
+                      size: 24,
+                      isSearching ? Icons.close : Icons.search,
+                      color: ThemeModule.cBlackWhiteColor,
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(width: 7),
-              GestureDetector(
-                onTap: () => save(),
-                child: Container(
-                  height: 36,
-                  width: 36,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: ThemeModule.cWhiteBlackColor,
-                  ),
-                  child: Icon(
-                    size: 24,
-                    Icons.save,
-                    color: ThemeModule.cForeColor,
+                SizedBox(width: 7),
+                GestureDetector(
+                  onTap: () => save(),
+                  child: Container(
+                    height: 36,
+                    width: 36,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: ThemeModule.cWhiteBlackColor,
+                    ),
+                    child: Icon(
+                      size: 24,
+                      Icons.save,
+                      color: ThemeModule.cForeColor,
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(width: 7),
-            ],
-            title: !isSearching
-                ? Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        color: ThemeModule.cWhiteBlackColor,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 30,
-                          vertical: 2,
+                SizedBox(width: 7),
+              ],
+              title: !isSearching
+                  ? Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: ThemeModule.cWhiteBlackColor,
                         ),
-                        child: Text(
-                          getHeaderText(),
-                          style: TextStyle(
-                            fontFamily: 'poppins_medium',
-                            fontSize: 20,
-                            color: ThemeModule.cBlackWhiteColor,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 30,
+                            vertical: 2,
+                          ),
+                          child: Text(
+                            getHeaderText(),
+                            style: TextStyle(
+                              fontFamily: 'poppins_medium',
+                              fontSize: 20,
+                              color: ThemeModule.cBlackWhiteColor,
+                            ),
                           ),
                         ),
                       ),
+                    )
+                  : Widgets().getSearchBar(
+                      context,
+                      txtSearchController,
+                      () => _onSearchChanged(txtSearchController.text),
                     ),
-                  )
-                : Widgets().getSearchBar(
-                    context,
-                    txtSearchController,
-                    () => _onSearchChanged(txtSearchController.text),
-                  ),
+            ),
           ),
         ),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: !isLoading
-              ? Column(
-                  children: [
-                    Widgets().getInvoiceChooseCardWidget(
-                      context,
-                      '${documentItems.warehouse.whCode} - ${documentItems.warehouse.whName}',
-                      'car',
-                      'chooseCar',
-                      Icons.local_shipping,
-                      isCarChoosen,
-                      () => onCarTap(),
-                    ), //Client
-                    SizedBox(height: 5),
-                    Widgets().getTextFormField(
-                      txtSeller,
-                      (v) {},
-                      [LengthLimitingTextInputFormatter(100)],
-                      'seller',
-                      ThemeModule.cTextFieldLabelColor,
-                      ThemeModule.cTextFieldFillColor,
-                      false,
-                      TextInputType.text,
-                    ),
-                    SizedBox(height: 5),
-                    Widgets().getTextFormField(
-                      txtChief,
-                      (v) {},
-                      [LengthLimitingTextInputFormatter(100)],
-                      'chief',
-                      ThemeModule.cTextFieldLabelColor,
-                      ThemeModule.cTextFieldFillColor,
-                      false,
-                      TextInputType.text,
-                    ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: !isLoading
+                ? Column(
+                    children: [
+                      Widgets().getInvoiceChooseCardWidget(
+                        context,
+                        '${documentItems.warehouse.whCode} - ${documentItems.warehouse.whName}',
+                        'car',
+                        'chooseCar',
+                        Icons.local_shipping,
+                        isCarChoosen,
+                        () => onCarTap(),
+                      ), //Client
+                      SizedBox(height: 5),
+                      Widgets().getTextFormField(
+                        txtSeller,
+                        (v) {},
+                        [LengthLimitingTextInputFormatter(100)],
+                        'seller',
+                        ThemeModule.cTextFieldLabelColor,
+                        ThemeModule.cTextFieldFillColor,
+                        false,
+                        TextInputType.text,
+                      ),
+                      SizedBox(height: 5),
+                      Widgets().getTextFormField(
+                        txtChief,
+                        (v) {},
+                        [LengthLimitingTextInputFormatter(100)],
+                        'chief',
+                        ThemeModule.cTextFieldLabelColor,
+                        ThemeModule.cTextFieldFillColor,
+                        false,
+                        TextInputType.text,
+                      ),
 
-                    const Divider(height: 10, thickness: 1),
-                    Expanded(child: getItemListWidget()),
-                  ],
-                )
-              : Widgets().getLoadingWidget(context),
+                      const Divider(height: 10, thickness: 1),
+                      Expanded(child: getItemListWidget()),
+                    ],
+                  )
+                : Widgets().getLoadingWidget(context),
+          ),
         ),
       ),
     );

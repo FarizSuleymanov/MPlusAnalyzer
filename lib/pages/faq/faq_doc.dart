@@ -700,53 +700,65 @@ class _FaqDocState extends State<FaqDoc> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(20.0),
-            bottomRight: Radius.circular(20.0),
-          ),
-          child: AppBar(
-            automaticallyImplyLeading: false,
-            actions: [
-              GestureDetector(
-                onTap: () => save(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        Messages(context: context).showYesNoDialog(
+          lan.getTranslatedText('areYouSureYouWantToExit'),
+          () async {
+            Navigator.pop(context);
+          },
+        );
+      },
+      child: Scaffold(
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(20.0),
+              bottomRight: Radius.circular(20.0),
+            ),
+            child: AppBar(
+              automaticallyImplyLeading: false,
+              actions: [
+                GestureDetector(
+                  onTap: () => save(),
+                  child: Container(
+                    height: 36,
+                    width: 36,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: ThemeModule.cWhiteBlackColor,
+                    ),
+                    child: Icon(
+                      size: 24,
+                      Icons.save,
+                      color: ThemeModule.cForeColor,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 10),
+              ],
+              title: Align(
+                alignment: Alignment.centerLeft,
                 child: Container(
-                  height: 36,
-                  width: 36,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(20),
                     color: ThemeModule.cWhiteBlackColor,
                   ),
-                  child: Icon(
-                    size: 24,
-                    Icons.save,
-                    color: ThemeModule.cForeColor,
-                  ),
-                ),
-              ),
-              SizedBox(width: 10),
-            ],
-            title: Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  color: ThemeModule.cWhiteBlackColor,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 30,
-                    vertical: 2,
-                  ),
-                  child: Text(
-                    getHeaderText(),
-                    style: TextStyle(
-                      fontFamily: 'poppins_medium',
-                      fontSize: 20,
-                      color: ThemeModule.cBlackWhiteColor,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 30,
+                      vertical: 2,
+                    ),
+                    child: Text(
+                      getHeaderText(),
+                      style: TextStyle(
+                        fontFamily: 'poppins_medium',
+                        fontSize: 20,
+                        color: ThemeModule.cBlackWhiteColor,
+                      ),
                     ),
                   ),
                 ),
@@ -754,50 +766,50 @@ class _FaqDocState extends State<FaqDoc> {
             ),
           ),
         ),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: !isLoading
-              ? SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      getWidgetClientFilterTree(),
-                      Widgets().getInvoiceChooseCardWidget(
-                        context,
-                        documentItems.client.clientName,
-                        '${lan.getTranslatedText('code')}:${documentItems.client.clientCode}',
-                        'chooseClient',
-                        Icons.supervisor_account_sharp,
-                        documentItems.client.clientCode != '' ? true : false,
-                        () => onClientTap(),
-                      ), //Client
-                      documentItems.client.clientCode != ''
-                          ? Card(
-                              child: Column(
-                                children: [
-                                  Text(
-                                    lan.getTranslatedText('questions'),
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 18),
-                                  ),
-                                  SizedBox(height: 5),
-                                  ListView.builder(
-                                    primary: false,
-                                    physics: const ClampingScrollPhysics(),
-                                    shrinkWrap: true,
-                                    itemCount: listQuestions.length,
-                                    itemBuilder: (context, index) =>
-                                        getQuestionCard(index),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : Container(),
-                    ],
-                  ),
-                )
-              : Widgets().getLoadingWidget(context),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: !isLoading
+                ? SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        getWidgetClientFilterTree(),
+                        Widgets().getInvoiceChooseCardWidget(
+                          context,
+                          documentItems.client.clientName,
+                          '${lan.getTranslatedText('code')}:${documentItems.client.clientCode}',
+                          'chooseClient',
+                          Icons.supervisor_account_sharp,
+                          documentItems.client.clientCode != '' ? true : false,
+                          () => onClientTap(),
+                        ), //Client
+                        documentItems.client.clientCode != ''
+                            ? Card(
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      lan.getTranslatedText('questions'),
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(fontSize: 18),
+                                    ),
+                                    SizedBox(height: 5),
+                                    ListView.builder(
+                                      primary: false,
+                                      physics: const ClampingScrollPhysics(),
+                                      shrinkWrap: true,
+                                      itemCount: listQuestions.length,
+                                      itemBuilder: (context, index) =>
+                                          getQuestionCard(index),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : Container(),
+                      ],
+                    ),
+                  )
+                : Widgets().getLoadingWidget(context),
+          ),
         ),
       ),
     );

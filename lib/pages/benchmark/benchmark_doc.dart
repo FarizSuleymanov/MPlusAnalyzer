@@ -781,153 +781,166 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
   @override
   Widget build(BuildContext context) {
     bool isClientChosen = documentItems.client.clientCode != '' ? true : false;
-    return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(20.0),
-            bottomRight: Radius.circular(20.0),
-          ),
-          child: AppBar(
-            automaticallyImplyLeading: false,
-            actions: [
-              GestureDetector(
-                onTap: () => setState(() {
-                  isSearching = !isSearching;
-                  if (!isSearching) {
-                    txtSearchController.clear();
-                    _filterKey = '';
-                    // _onSearchChanged('');
-                  }
-                }),
-                child: Container(
-                  height: 36,
-                  width: 36,
-                  child: Icon(
-                    size: 24,
-                    isSearching ? Icons.close : Icons.search,
-                    color: ThemeModule.cBlackWhiteColor,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        Messages(context: context).showYesNoDialog(
+          lan.getTranslatedText('areYouSureYouWantToExit'),
+          () async {
+            Navigator.pop(context);
+          },
+        );
+      },
+      child: Scaffold(
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(20.0),
+              bottomRight: Radius.circular(20.0),
+            ),
+            child: AppBar(
+              automaticallyImplyLeading: false,
+              actions: [
+                GestureDetector(
+                  onTap: () => setState(() {
+                    isSearching = !isSearching;
+                    if (!isSearching) {
+                      txtSearchController.clear();
+                      _filterKey = '';
+                      // _onSearchChanged('');
+                    }
+                  }),
+                  child: Container(
+                    height: 36,
+                    width: 36,
+                    child: Icon(
+                      size: 24,
+                      isSearching ? Icons.close : Icons.search,
+                      color: ThemeModule.cBlackWhiteColor,
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(width: 7),
-              GestureDetector(
-                onTap: () => save(),
-                child: Container(
-                  height: 36,
-                  width: 36,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: ThemeModule.cWhiteBlackColor,
-                  ),
-                  child: Icon(
-                    size: 24,
-                    Icons.save,
-                    color: ThemeModule.cForeColor,
+                SizedBox(width: 7),
+                GestureDetector(
+                  onTap: () => save(),
+                  child: Container(
+                    height: 36,
+                    width: 36,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: ThemeModule.cWhiteBlackColor,
+                    ),
+                    child: Icon(
+                      size: 24,
+                      Icons.save,
+                      color: ThemeModule.cForeColor,
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(width: 7),
-            ],
-            title: !isSearching
-                ? Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        color: ThemeModule.cWhiteBlackColor,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 30,
-                          vertical: 2,
+                SizedBox(width: 7),
+              ],
+              title: !isSearching
+                  ? Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: ThemeModule.cWhiteBlackColor,
                         ),
-                        child: Text(
-                          getHeaderText(),
-                          style: TextStyle(
-                            fontFamily: 'poppins_medium',
-                            fontSize: 20,
-                            color: ThemeModule.cBlackWhiteColor,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 30,
+                            vertical: 2,
+                          ),
+                          child: Text(
+                            getHeaderText(),
+                            style: TextStyle(
+                              fontFamily: 'poppins_medium',
+                              fontSize: 20,
+                              color: ThemeModule.cBlackWhiteColor,
+                            ),
                           ),
                         ),
                       ),
+                    )
+                  : Widgets().getSearchBar(
+                      context,
+                      txtSearchController,
+                      () =>
+                          setState(() => _filterKey = txtSearchController.text),
                     ),
-                  )
-                : Widgets().getSearchBar(
-                    context,
-                    txtSearchController,
-                    () => setState(() => _filterKey = txtSearchController.text),
-                  ),
+            ),
           ),
         ),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: !isLoading
-              ? Column(
-                  children: [
-                    SizedBox(
-                      height: 300,
-                      child: SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          verticalDirection: VerticalDirection.down,
-                          children: [
-                            getWidgetClientFilter(),
-                            Widgets().getInvoiceChooseCardWidget(
-                              context,
-                              documentItems.client.clientName,
-                              '${lan.getTranslatedText('code')}:${documentItems.client.clientCode}    ${lan.getTranslatedText('clientDebt')}:${documentItems.client.clientDebt}₼',
-                              'chooseClient',
-                              Icons.supervisor_account_sharp,
-                              isClientChosen,
-                              () => onClientTap(),
-                            ),
-                            Widgets().getInvoiceChooseCardWidget(
-                              context,
-                              selectedCategory1,
-                              'category1',
-                              'category1Selection',
-                              Icons.category,
-                              selectedCategory1 != '' ? true : false,
-                              onCategory1Tap,
-                            ),
-                            selectedCategory1 != ''
-                                ? Widgets().getInvoiceChooseCardWidget(
-                                    context,
-                                    selectedFirm,
-                                    'firms',
-                                    'firmsSelection',
-                                    Icons.business,
-                                    selectedFirm != '' ? true : false,
-                                    onFirmTap,
-                                  )
-                                : Container(),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: !isLoading
+                ? Column(
+                    children: [
+                      SizedBox(
+                        height: 300,
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            verticalDirection: VerticalDirection.down,
+                            children: [
+                              getWidgetClientFilter(),
+                              Widgets().getInvoiceChooseCardWidget(
+                                context,
+                                documentItems.client.clientName,
+                                '${lan.getTranslatedText('code')}:${documentItems.client.clientCode}    ${lan.getTranslatedText('clientDebt')}:${documentItems.client.clientDebt}₼',
+                                'chooseClient',
+                                Icons.supervisor_account_sharp,
+                                isClientChosen,
+                                () => onClientTap(),
+                              ),
+                              Widgets().getInvoiceChooseCardWidget(
+                                context,
+                                selectedCategory1,
+                                'category1',
+                                'category1Selection',
+                                Icons.category,
+                                selectedCategory1 != '' ? true : false,
+                                onCategory1Tap,
+                              ),
+                              selectedCategory1 != ''
+                                  ? Widgets().getInvoiceChooseCardWidget(
+                                      context,
+                                      selectedFirm,
+                                      'firms',
+                                      'firmsSelection',
+                                      Icons.business,
+                                      selectedFirm != '' ? true : false,
+                                      onFirmTap,
+                                    )
+                                  : Container(),
 
-                            selectedFirm != ''
-                                ? Widgets().getInvoiceChooseCardWidget(
-                                    context,
-                                    selectedCategory2,
-                                    'category2',
-                                    'category2Selection',
-                                    Icons.category,
-                                    selectedCategory2 != '' ? true : false,
-                                    onCategory2Tap,
-                                  )
-                                : Container(),
-                          ],
+                              selectedFirm != ''
+                                  ? Widgets().getInvoiceChooseCardWidget(
+                                      context,
+                                      selectedCategory2,
+                                      'category2',
+                                      'category2Selection',
+                                      Icons.category,
+                                      selectedCategory2 != '' ? true : false,
+                                      onCategory2Tap,
+                                    )
+                                  : Container(),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    const Divider(height: 10, thickness: 1),
-                    Expanded(child: getItemListWidget()),
-                  ],
-                )
-              : Widgets().getLoadingWidget(context),
+                      const Divider(height: 10, thickness: 1),
+                      Expanded(child: getItemListWidget()),
+                    ],
+                  )
+                : Widgets().getLoadingWidget(context),
+          ),
         ),
       ),
     );

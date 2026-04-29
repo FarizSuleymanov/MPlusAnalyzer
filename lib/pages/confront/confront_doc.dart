@@ -430,53 +430,65 @@ class _ConfrontDocState extends State<ConfrontDoc> {
   @override
   Widget build(BuildContext context) {
     bool isClientChosen = documentItems.client.clientCode != '' ? true : false;
-    return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(20.0),
-            bottomRight: Radius.circular(20.0),
-          ),
-          child: AppBar(
-            automaticallyImplyLeading: false,
-            actions: [
-              GestureDetector(
-                onTap: () => save(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        Messages(context: context).showYesNoDialog(
+          lan.getTranslatedText('areYouSureYouWantToExit'),
+          () async {
+            Navigator.pop(context);
+          },
+        );
+      },
+      child: Scaffold(
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(20.0),
+              bottomRight: Radius.circular(20.0),
+            ),
+            child: AppBar(
+              automaticallyImplyLeading: false,
+              actions: [
+                GestureDetector(
+                  onTap: () => save(),
+                  child: Container(
+                    height: 36,
+                    width: 36,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: ThemeModule.cWhiteBlackColor,
+                    ),
+                    child: Icon(
+                      size: 24,
+                      Icons.save,
+                      color: ThemeModule.cForeColor,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 10),
+              ],
+              title: Align(
+                alignment: Alignment.centerLeft,
                 child: Container(
-                  height: 36,
-                  width: 36,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(20),
                     color: ThemeModule.cWhiteBlackColor,
                   ),
-                  child: Icon(
-                    size: 24,
-                    Icons.save,
-                    color: ThemeModule.cForeColor,
-                  ),
-                ),
-              ),
-              SizedBox(width: 10),
-            ],
-            title: Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  color: ThemeModule.cWhiteBlackColor,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 30,
-                    vertical: 2,
-                  ),
-                  child: Text(
-                    getHeaderText(),
-                    style: TextStyle(
-                      fontFamily: 'poppins_medium',
-                      fontSize: 20,
-                      color: ThemeModule.cBlackWhiteColor,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 30,
+                      vertical: 2,
+                    ),
+                    child: Text(
+                      getHeaderText(),
+                      style: TextStyle(
+                        fontFamily: 'poppins_medium',
+                        fontSize: 20,
+                        color: ThemeModule.cBlackWhiteColor,
+                      ),
                     ),
                   ),
                 ),
@@ -484,63 +496,63 @@ class _ConfrontDocState extends State<ConfrontDoc> {
             ),
           ),
         ),
-      ),
-      body: SafeArea(
-        child: !isLoading
-            ? SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    children: [
-                      getWidgetClientFilter(),
-                      Widgets().getInvoiceChooseCardWidget(
-                        context,
-                        documentItems.client.clientName,
-                        '${lan.getTranslatedText('code')}:${documentItems.client.clientCode}    ${lan.getTranslatedText('clientDebt')}:${documentItems.client.clientDebt}₼',
-                        'chooseClient',
-                        Icons.supervisor_account_sharp,
-                        isClientChosen,
-                        () => onClientTap(),
-                      ), //Client
-                      Widgets().getInvoiceTextFieldWidget(
-                        context,
-                        txtAmount,
-                        'confrontTotal',
-                        Icons.monetization_on,
-                        (v) => txtAmount.text = v,
-                        [
-                          FilteringTextInputFormatter.deny(
-                            ',',
-                            replacementString: '.',
-                          ),
-                          FilteringTextInputFormatter.allow(
-                            RegExp(r'(^\d*\.?\d{0,2})'),
-                          ),
-                        ],
-                        textInputType: TextInputType.number,
-                      ),
+        body: SafeArea(
+          child: !isLoading
+              ? SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      children: [
+                        getWidgetClientFilter(),
+                        Widgets().getInvoiceChooseCardWidget(
+                          context,
+                          documentItems.client.clientName,
+                          '${lan.getTranslatedText('code')}:${documentItems.client.clientCode}    ${lan.getTranslatedText('clientDebt')}:${documentItems.client.clientDebt}₼',
+                          'chooseClient',
+                          Icons.supervisor_account_sharp,
+                          isClientChosen,
+                          () => onClientTap(),
+                        ), //Client
+                        Widgets().getInvoiceTextFieldWidget(
+                          context,
+                          txtAmount,
+                          'confrontTotal',
+                          Icons.monetization_on,
+                          (v) => txtAmount.text = v,
+                          [
+                            FilteringTextInputFormatter.deny(
+                              ',',
+                              replacementString: '.',
+                            ),
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'(^\d*\.?\d{0,2})'),
+                            ),
+                          ],
+                          textInputType: TextInputType.number,
+                        ),
 
-                      Widgets().getInvoiceTextFieldWidget(
-                        context,
-                        txtCommentController,
-                        'comment',
-                        Icons.notes,
-                        (v) => txtCommentController.text = v,
-                        [LengthLimitingTextInputFormatter(250)],
-                      ),
-                      Widgets().getInvoiceCheckBoxWidget(
-                        context,
-                        isClientAgree,
-                        'isClientAgree',
-                        true,
-                        Icons.contact_page,
-                        (v) => setState(() => isClientAgree = v),
-                      ),
-                    ],
+                        Widgets().getInvoiceTextFieldWidget(
+                          context,
+                          txtCommentController,
+                          'comment',
+                          Icons.notes,
+                          (v) => txtCommentController.text = v,
+                          [LengthLimitingTextInputFormatter(250)],
+                        ),
+                        Widgets().getInvoiceCheckBoxWidget(
+                          context,
+                          isClientAgree,
+                          'isClientAgree',
+                          true,
+                          Icons.contact_page,
+                          (v) => setState(() => isClientAgree = v),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              )
-            : Widgets().getLoadingWidget(context),
+                )
+              : Widgets().getLoadingWidget(context),
+        ),
       ),
     );
   }
