@@ -149,7 +149,7 @@ class _ClientsPageState extends State<ClientsPage> {
     _markers.clear();
     for (Client client in listClients) {
       if (client.clientLongitude > 0 && client.clientLongitude > 0) {
-        String debtLine = widget.module != 1
+        String debtLine = widget.module != 2
             ? '${lan.getTranslatedText('debt')}: ${client.clientDebt}₼'
             : '';
         final marker = Marker(
@@ -478,7 +478,7 @@ class _ClientsPageState extends State<ClientsPage> {
                             ),
                           ),
 
-                          widget.module != 1
+                          widget.module != 2
                               ? Container(
                                   width: 100,
                                   child: Widgets().getRichText(
