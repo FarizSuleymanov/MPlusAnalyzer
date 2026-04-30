@@ -19,6 +19,7 @@ import 'package:uuid/uuid.dart';
 import '../../models/client.dart';
 import '../../models/document_items.dart';
 import '../../utils/card_choose.dart';
+import '../../utils/global_params.dart';
 import '../../utils/messages.dart';
 import '../../widgets/keypad.dart';
 import '../../widgets/tri_state_checkbox.dart';
@@ -269,6 +270,10 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
             ),
           )
           .toList();
+    }
+    String orderBy = GlobalParams.params.countingItemsOrderBy;
+    if (orderBy == '0') {
+      listAllItems.sort((a, b) => a.itemCode.compareTo(b.itemCode));
     }
   }
 
