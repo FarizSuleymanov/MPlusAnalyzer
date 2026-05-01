@@ -898,7 +898,7 @@ class _BenchmarkDocState extends State<BenchmarkDoc> {
                               Widgets().getInvoiceChooseCardWidget(
                                 context,
                                 documentItems.client.clientName,
-                                '${lan.getTranslatedText('code')}:${documentItems.client.clientCode}    ${lan.getTranslatedText('clientDebt')}:${documentItems.client.clientDebt}₼',
+                                '${lan.getTranslatedText('code')}:${documentItems.client.clientCode}',
                                 'chooseClient',
                                 Icons.supervisor_account_sharp,
                                 isClientChosen,
